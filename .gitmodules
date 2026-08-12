@@ -1,0 +1,9 @@
+[submodule "hermes"]
+	path = hermes
+	url = https://github.com/taemwht/Emma-hermes.git
+[submodule "api-foundation"]
+	path = api-foundation
+	url = https://github.com/taemwht/Emma-api-foundation.git
+[submodule "db-foundation"]
+	path = db-foundation
+	url = https://github.com/taemwht/Emma-db-foundation.git
