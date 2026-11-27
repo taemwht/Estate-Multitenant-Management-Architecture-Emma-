@@ -26,6 +26,7 @@ from collections import defaultdict, deque
 import httpx
 from starlette.concurrency import run_in_threadpool
 
+from .. import notify
 from ..config import settings
 from ..security import create_access_token
 from . import links
@@ -109,6 +110,7 @@ class TelegramBot:
 
     async def run(self):
         self.http = httpx.AsyncClient(timeout=60)
+        outbox = asyncio.create_task(self.outbox_loop())
         offset, backoff = None, 1
         while True:
             try:
@@ -129,6 +131,7 @@ class TelegramBot:
                     offset = u["update_id"] + 1
                     asyncio.create_task(self.handle(u))
             except asyncio.CancelledError:
+                outbox.cancel()
                 await self.http.aclose()
                 raise
             except Exception as e:  # network blips, Telegram hiccups, another poller
@@ -214,10 +217,50 @@ class TelegramBot:
             {"text": "✖ Cancel", "callback_data": f"no:{key}"},
         ]]})
 
+    # ---------------------------------------------------------- notifications
+    async def outbox_loop(self):
+        """Every few seconds, deliver new notifications (e.g. "New job") to
+        people who've linked Telegram, with a Mark as read button."""
+        while True:
+            try:
+                for n in await run_in_threadpool(notify.telegram_outbox):
+                    chat_id = await run_in_threadpool(links.telegram_id_for_user, n["user_id"])
+                    if chat_id is None:
+                        await run_in_threadpool(notify.set_telegram_status, n["id"], "not_linked")
+                        continue
+                    icon = {"job_assigned": "🔔", "job_rescheduled": "📅", "job_reminder": "⏰"}.get(n["kind"], "🔔")
+                    text = f"{icon} <b>{html.escape(n['title'])}</b>\n{html.escape(n['body'] or '')}"
+                    markup = None if n["read"] else {"inline_keyboard": [[{"text": "✓ Mark as read", "callback_data": f"rd:{n['id']}"}]]}
+                    try:
+                        await self.call("sendMessage", chat_id=chat_id, text=text, parse_mode="HTML",
+                                        **({"reply_markup": markup} if markup else {}))
+                        await run_in_threadpool(notify.set_telegram_status, n["id"], "sent")
+                    except Exception as e:
+                        log.warning("Telegram notification failed: %s", e)
+                        await run_in_threadpool(notify.set_telegram_status, n["id"], "failed")
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                log.exception("Telegram outbox problem")
+            await asyncio.sleep(5)
+
+    async def on_read(self, cb: dict, notification_id: str):
+        who = await run_in_threadpool(links.lookup, cb["from"]["id"])
+        ok = who is not None and await run_in_threadpool(notify.mark_read_as, notification_id, who["id"])
+        await self.call("answerCallbackQuery", callback_query_id=cb["id"], text="Marked as read" if ok else "Couldn't find that notification.")
+        msg = cb.get("message") or {}
+        if ok and msg:
+            await self.call("editMessageReplyMarkup", chat_id=msg["chat"]["id"], message_id=msg["message_id"],
+                            reply_markup={"inline_keyboard": [[{"text": "✓ Read", "callback_data": "noop"}]]})
+
     async def on_button(self, cb: dict):
         tg_id = cb["from"]["id"]
         msg = cb.get("message") or {}
         verb, _, key = (cb.get("data") or "").partition(":")
+        if verb == "rd":
+            return await self.on_read(cb, key)
+        if verb == "noop":
+            return await self.call("answerCallbackQuery", callback_query_id=cb["id"])
         p = self.pending.get(key)
         if p is None or p["exp"] < time.time() or p["tg"] != tg_id:
             return await self.call("answerCallbackQuery", callback_query_id=cb["id"], text="This has expired. Ask EMMA again.")

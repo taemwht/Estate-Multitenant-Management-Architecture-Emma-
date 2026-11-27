@@ -200,6 +200,26 @@ footer{color:var(--faint);font-size:12.5px;text-align:center;padding:28px 16px;b
 }
 @media (max-width:560px){ .brand .wm small{display:none} .mini b{font-size:15px} }
 @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
+/* ---------- notifications bell ---------- */
+.bell{position:relative;width:34px;height:34px;display:grid;place-items:center;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--muted);cursor:pointer}
+.bell:hover,.bell.on{color:var(--ink);border-color:var(--line-hi)}
+.bell svg{width:17px;height:17px}
+.bell b[hidden]{display:none}
+.bell b{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:linear-gradient(135deg,#ff6b81,#ff8f5a);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;box-shadow:0 0 0 2px var(--bg)}
+#notes{position:fixed;z-index:35;top:70px;right:max(16px,calc((100vw - 1160px)/2 + 16px));width:380px;max-width:calc(100vw - 32px);max-height:min(560px,calc(100vh - 90px));display:none;flex-direction:column;background:var(--panel-solid);border:1px solid var(--line-hi);border-radius:16px;box-shadow:0 24px 60px -20px rgba(0,0,0,.6);overflow:hidden}
+#notes.open{display:flex}
+#notes header{position:static;display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);background:none;backdrop-filter:none}
+#notes header b{flex:1;font-size:14px}
+#notes .list{overflow-y:auto}
+.note-i{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;color:var(--ink);padding:12px 14px 12px 28px;cursor:pointer;position:relative;font:inherit}
+.note-i:hover{background:var(--panel-hi)}
+.note-i.unread::before{content:"";position:absolute;left:12px;top:18px;width:8px;height:8px;border-radius:50%;background:var(--accent2);box-shadow:0 0 8px var(--accent2)}
+.note-i b{display:block;font-size:13.5px;font-weight:600;margin-bottom:2px} .note-i:not(.unread) b{font-weight:500;color:var(--muted)}
+.note-i span{display:block;font-size:12.5px;color:var(--muted)}
+.note-i small{display:block;font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:4px}
+.deliv{font-size:11.5px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-family:var(--mono)}
+.deliv .r{color:var(--ok)} .deliv .u{color:var(--warn)}
+.head-row{display:flex;align-items:center;gap:10px;margin-bottom:14px} .head-row h2{margin:0;flex:1}
 /* ---------- Ask EMMA chat ---------- */
 #chatFab{position:fixed;right:22px;bottom:22px;z-index:40;display:none;align-items:center;gap:9px;padding:12px 18px 12px 14px;border-radius:999px;font-size:14.5px;box-shadow:0 0 0 1px rgba(255,255,255,.12) inset,0 12px 32px -8px rgba(79,141,255,.75)}
 #chatFab svg{width:19px;height:19px}
@@ -249,6 +269,7 @@ footer{color:var(--faint);font-size:12.5px;text-align:center;padding:28px 16px;b
   <button class="theme" id="themeBtn" type="button" aria-label="Switch light or dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
 </div></header>
 <div class="wrap"><main id="app"></main></div>
+<section id="notes" aria-label="Notifications"><header><b>Notifications</b><button class="btn sm ghost" id="notesAll" type="button">Mark all read</button></header><div class="list" id="notesList"></div></section>
 <footer>EMMA · Estate Multitenant Management Architecture · Demo environment: every screen shows exactly what the API lets the signed-in role see</footer>
 
 <button class="btn" id="chatFab" aria-label="Ask EMMA"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z" opacity=".7"/></svg>Ask EMMA</button>
@@ -296,7 +317,7 @@ async function api(method, path, body, retry = true){
 const get = p => api("GET", p);
 async function getMany(paths){ const out = {}; await Promise.all(Object.entries(paths).map(async ([k,p]) => { out[k] = await get(p); })); return out; }
 
-function logout(){ chatReset(); shown = null; store.set("access", null); store.set("refresh", null); me = company = null; cache = {}; render(); }
+function logout(){ notesStop(); chatReset(); shown = null; store.set("access", null); store.set("refresh", null); me = company = null; cache = {}; render(); }
 function flash(el, text, ok){ el.innerHTML = `<div class="msg ${ok?"good":"err"}">${esc(text)}</div>`; }
 
 /* ---------------- start page (signed out) ---------------- */
@@ -421,8 +442,10 @@ async function render(){
   if (!store.get("access")) return signedOut();
   try { me = await get("/auth/me"); company = me.company_id ? await get("/companies/me").catch(() => null) : null; }
   catch (e) { if (e.status === 0) { $app.innerHTML = `<div class="card" style="margin-top:24px"><h2>API unreachable</h2><p class="muted">${esc(e.message)}</p><button class="btn" onclick="render()">Retry</button></div>`; return; } return logout(); }
-  $who.innerHTML = `<span class="badge">${esc(ROLE_LABEL[me.role] || me.role)}</span><span>${esc(me.username)}${company ? " · " + esc(company.name) : ""}</span><button class="btn ghost sm" id="out">Sign out</button>`;
+  $who.innerHTML = `<span class="badge">${esc(ROLE_LABEL[me.role] || me.role)}</span><span>${esc(me.username)}${company ? " · " + esc(company.name) : ""}</span><button class="bell" id="bell" type="button" aria-label="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 20a1.9 1.9 0 0 0 3.4 0"/></svg><b id="bellN" hidden></b></button><button class="btn ghost sm" id="out">Sign out</button>`;
   document.getElementById("out").onclick = logout;
+  document.getElementById("bell").onclick = notesToggle;
+  notesCount();
   chatShow(true);
   const tabs = TABS[me.role] || TABS.contractor;
   if (!tab || !tabs.some(t => t[0] === tab)) tab = tabs[0][0];
@@ -657,32 +680,47 @@ const VIEWS = {
   async maint(v){
     const [{reqs, units}, cos] = [await getMany({reqs:"/maintenance-requests", units:"/rental-units"}), await companyMap()];
     const crew = canWork() ? await get("/contractors") : [];
-    const crewName = Object.fromEntries(crew.map(c => [c.id, c.name]));
+    const crewById = Object.fromEntries(crew.map(c => [c.id, c]));
+    const sent = canWork() ? Object.fromEntries((await get("/notifications/delivery").catch(() => [])).map(d => [d.entity_id, d])) : {};
     const unitRef = Object.fromEntries(units.map(u => [u.id, u.unit_reference]));
-    const canFile = me.role === "tenant" || canWork();
     const STAT = ["Submitted","Scheduled","In Progress","On Hold","Completed","Verified","Cancelled"];
-    v.innerHTML = `${canFile ? `<div class="card"><h2>${me.role === "tenant" ? "Report a problem" : "New request"}</h2><form id="fm" class="row">
+    const DONE = ["Completed","Verified","Cancelled"];
+    const form = `<form id="fm" class="row">
         <label>Unit<select name="rental_unit_id" required>${units.map(u => `<option value="${u.id}">${esc(u.unit_reference)}</option>`).join("")}</select></label>
         <label style="flex:3 1 260px">What's wrong?<input name="description" required></label>
         <label>Priority<select name="priority"><option>normal</option><option>high</option><option>emergency</option><option>low</option></select></label>
-        <button class="btn" type="submit">Submit</button></form><div class="fmsg"></div></div>` : ""}
-      <div class="card"><h2>${me.role === "tenant" ? "Your requests" : "Requests"}</h2>${table([
+        <button class="btn" type="submit">Submit</button></form><div class="fmsg"></div>`;
+    // who was told, and did they read it
+    const delivery = r => {
+      const c = crewById[r.assigned_contractor_id]; if (!c) return "";
+      if (!c.has_login) return `<div class="deliv">No login · can't be notified</div>`;
+      const d = sent[r.id]; if (!d) return `<div class="deliv">Not notified yet</div>`;
+      const pinged = d.pings ? ` · pinged ×${d.pings}` : "";
+      return d.read_at ? `<div class="deliv"><span class="r">✓ Read</span> ${ago(d.read_at)}${pinged}</div>`
+        : `<div class="deliv"><span class="u">● Unread</span> sent ${ago(d.sent_at)}${pinged}${DONE.includes(r.status) ? "" : ` <button class="btn sm ghost" data-ping="${r.id}" type="button">Ping</button>`}</div>`;
+    };
+    v.innerHTML = `${me.role === "tenant" ? `<div class="card"><h2>Report a problem</h2>${form}</div>` : ""}
+      ${canWork() ? `<div class="card" id="newReq" hidden><h2>New request</h2>${form}</div>` : ""}
+      <div class="card"><div class="head-row"><h2>${me.role === "tenant" ? "Your requests" : "Requests"}</h2>${canWork() ? `<button class="btn sm ghost" id="newReqBtn" type="button">+ New request</button>` : ""}</div>${table([
         ...(me.role==="super_admin" ? [{h:"Company", f:r => esc(cos[r.company_id])}] : []),
         {h:"Unit", f:r => esc(unitRef[r.rental_unit_id] || "—")}, {h:"Problem", f:r => esc(r.description)},
         {h:"Priority", f:r => esc(r.priority)},
         ...(canWork() ? [
-          {h:"Contractor", f:r => `<select data-crew="${r.id}"><option value="">—</option>${crew.map(c => `<option value="${c.id}" ${c.id===r.assigned_contractor_id?"selected":""}>${esc(c.name)}</option>`).join("")}</select>`},
+          {h:"Contractor", f:r => `<select data-crew="${r.id}"><option value="">—</option>${crew.map(c => `<option value="${c.id}" ${c.id===r.assigned_contractor_id?"selected":""}>${esc(c.name)}</option>`).join("")}</select>${delivery(r)}`},
           {h:"Date", f:r => `<input type="date" data-date="${r.id}" value="${r.scheduled_date || ""}">`},
-        ] : me.role === "super_admin" ? [] : []),
+        ] : []),
         {h:"Status", f:r => canWork() ? `<select data-st="${r.id}">${STAT.map(s => `<option ${s===r.status?"selected":""}>${s}</option>`).join("")}</select>` : statusBadge(r.status)},
         {h:"", f:r => me.role === "tenant" && r.status === "Completed" ? `<button class="btn sm" data-ver="${r.id}">Confirm fixed</button>` : ""},
       ], reqs, "No open requests.")}</div>`;
     bindForm("fm", b => api("POST","/maintenance-requests", b));
+    const nb = document.getElementById("newReqBtn");
+    if (nb) nb.onclick = () => { const c = document.getElementById("newReq"); c.hidden = !c.hidden; nb.textContent = c.hidden ? "+ New request" : "Close"; if (!c.hidden) c.querySelector("[name=description]").focus(); };
     v.querySelectorAll("[data-st]").forEach(s => s.onchange = async () => { try { await api("PATCH", `/maintenance-requests/${s.dataset.st}`, {status:s.value}); } catch (e) { alert(e.message); } reload(); });
     const patch = async (id, body) => { try { await api("PATCH", `/maintenance-requests/${id}`, body); } catch (e) { alert(e.message); } reload(); };
     v.querySelectorAll("[data-crew]").forEach(s => s.onchange = () => s.value && patch(s.dataset.crew, {assigned_contractor_id:s.value}));
     v.querySelectorAll("[data-date]").forEach(i => i.onchange = () => i.value && patch(i.dataset.date, {scheduled_date:i.value}));
     v.querySelectorAll("[data-ver]").forEach(b => b.onclick = async () => { await api("POST", `/maintenance-requests/${b.dataset.ver}/verify`); reload(); });
+    v.querySelectorAll("[data-ping]").forEach(b => b.onclick = async () => { b.disabled = true; try { await api("POST", `/maintenance-requests/${b.dataset.ping}/ping`); b.textContent = "Pinged ✓"; setTimeout(reload, 900); } catch (e) { alert(e.message); b.disabled = false; } });
   },
 
   async checkins(v){
@@ -941,6 +979,42 @@ document.getElementById("chNew").onclick = () => { if (chat.busy) return; tgStop
 document.getElementById("chForm").onsubmit = e => { e.preventDefault(); chSend($chIn.value); };
 $chIn.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); chSend($chIn.value); } });
 $chIn.addEventListener("input", () => { $chIn.style.height = "auto"; $chIn.style.height = Math.min($chIn.scrollHeight, 120) + "px"; });
+
+/* ---------------- notifications (bell) ----------------
+   e.g. a contractor gets "New job" when a job is assigned to them. Opening
+   one marks it read; the company that sent it sees "Read". */
+const $notes = document.getElementById("notes");
+let notesTimer = null;
+const ago = t => { const m = Math.round((Date.now() - new Date(t)) / 60000);
+  return m < 1 ? "just now" : m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " h ago" : new Date(t).toLocaleDateString(); };
+async function notesCount(){
+  clearTimeout(notesTimer);
+  if (!store.get("access")) return;
+  try { const {unread} = await api("GET", "/notifications/unread-count"); const b = document.getElementById("bellN");
+    if (b) { b.hidden = !unread; b.textContent = unread > 9 ? "9+" : unread; } } catch {}
+  notesTimer = setTimeout(notesCount, 30000);
+}
+function notesStop(){ clearTimeout(notesTimer); $notes.classList.remove("open"); }
+async function notesToggle(){
+  if ($notes.classList.toggle("open")) { document.getElementById("bell").classList.add("on"); await notesDraw(); }
+  else document.getElementById("bell").classList.remove("on");
+}
+async function notesDraw(){
+  const list = document.getElementById("notesList");
+  let items = [];
+  try { items = await api("GET", "/notifications"); } catch (e) { list.innerHTML = `<div class="msg err" style="margin:12px">${esc(e.message)}</div>`; return; }
+  list.innerHTML = items.length ? items.map(n => `<button class="note-i ${n.read_at ? "" : "unread"}" data-n="${n.id}" data-tab="${esc(n.link_tab || "")}" type="button">
+      <b>${esc(n.title)}</b><span>${esc(n.body || "")}</span><small>${ago(n.created_at)}${n.read_at ? " · read" : ""}</small></button>`).join("")
+    : `<p class="muted" style="padding:16px;margin:0;text-align:center">You're all caught up.</p>`;
+  list.querySelectorAll("[data-n]").forEach(b => b.onclick = async () => {
+    try { await api("POST", `/notifications/${b.dataset.n}/read`); } catch {}
+    notesStop(); document.getElementById("bell").classList.remove("on"); notesCount();
+    const tabs = TABS[me.role] || [];
+    if (b.dataset.tab && tabs.some(t => t[0] === b.dataset.tab)) { tab = b.dataset.tab; render(); }
+  });
+}
+document.getElementById("notesAll").onclick = async () => { try { await api("POST", "/notifications/read-all"); } catch {} notesDraw(); notesCount(); };
+document.addEventListener("click", e => { if ($notes.classList.contains("open") && !$notes.contains(e.target) && !e.target.closest("#bell")) { $notes.classList.remove("open"); document.getElementById("bell")?.classList.remove("on"); } });
 
 /* light / dark */
 const $theme = document.getElementById("themeBtn");

@@ -2,12 +2,14 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from ..audit import write_audit_log
+from ..notify import DONE, notify_job
 from ..database import get_db
 from ..deps import require_roles, get_actor_type
-from ..models import MaintenanceRequest, MaintenancePhoto, MaintenanceLog, RentalUnit, Contractor, ContractorCompany, Tenant, User
+from ..models import MaintenanceRequest, MaintenancePhoto, MaintenanceLog, Notification, RentalUnit, Contractor, ContractorCompany, Tenant, User
 from ..schemas import MaintenanceRequestCreate, MaintenanceRequestUpdate, MaintenanceRequestOut, MaintenanceLogCreate, MaintenanceLogOut
 from ..scoping import STAFF_AND_TENANT_ROLES, tenant_scope_for, ADMIN_ROLES
 
@@ -182,6 +184,7 @@ def update_maintenance_request(
                                  detail="Contractor not found for this company")
 
     before = _to_out(db, req).model_dump(mode="json")
+    old_contractor, old_date = req.assigned_contractor_id, req.scheduled_date
     changes = body.model_dump(exclude_unset=True, mode="json")
     now = datetime.now(timezone.utc)
     for field, value in changes.items():
@@ -215,6 +218,15 @@ def update_maintenance_request(
 
     db.flush()
 
+    # Tell the contractor (website bell + Telegram): a new assignment, or
+    # a new date on a job they already have.
+    if req.assigned_contractor_id is not None and req.status not in DONE:
+        # (values set from the request body are strings; compare as text)
+        if str(req.assigned_contractor_id) != str(old_contractor):
+            notify_job(db, req, "job_assigned", current_user.id)
+        elif str(req.scheduled_date or "") != str(old_date or ""):
+            notify_job(db, req, "job_rescheduled", current_user.id)
+
     write_audit_log(
         db, company_id=current_user.company_id, actor_id=current_user.id,
         actor_type=actor_type, action="update", entity_type="maintenance_request",
@@ -224,6 +236,35 @@ def update_maintenance_request(
     result = _to_out(db, req)
     db.commit()
     return result
+
+
+@router.post("/{request_id}/ping")
+def ping_contractor(
+    request_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*MANAGE_ROLES)),
+):
+    """Send the assigned contractor a follow-up reminder now (bell + Telegram).
+    At most one ping per job every 10 minutes."""
+    req = db.query(MaintenanceRequest).filter(MaintenanceRequest.id == request_id,
+                                              MaintenanceRequest.is_deleted.is_(False)).first()
+    if not req:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Maintenance request not found")
+    if req.assigned_contractor_id is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No contractor is assigned to this job.")
+    recent = (db.query(Notification)
+              .filter(Notification.entity_id == req.id, Notification.company_id == current_user.company_id,
+                      Notification.created_at > func.now() - text("interval '10 minutes'"))
+              .first())
+    if recent:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="They were just notified. You can ping again in a few minutes.")
+    n = notify_job(db, req, "job_reminder", current_user.id)
+    if n is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="This contractor has no EMMA login yet, so they can't be notified. Create one on the Contractors page.")
+    db.commit()
+    return {"sent": True}
 
 
 @router.post("/{request_id}/verify", response_model=MaintenanceRequestOut)

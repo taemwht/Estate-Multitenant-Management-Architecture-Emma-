@@ -78,6 +78,17 @@ def lookup(telegram_user_id: int) -> Optional[dict]:
         db.close()
 
 
+def telegram_id_for_user(user_id: str) -> Optional[int]:
+    """The Telegram account linked to an EMMA login, if any (private chat id == user id)."""
+    db = SessionLocal()
+    try:
+        with super_admin_session(db):
+            row = db.query(TelegramLink).filter(TelegramLink.user_id == user_id).first()
+        return row.telegram_user_id if row else None
+    finally:
+        db.close()
+
+
 def link(telegram_user_id: int, telegram_username: Optional[str], user_id: str) -> None:
     """Replaces any earlier link for either side."""
     db = SessionLocal()

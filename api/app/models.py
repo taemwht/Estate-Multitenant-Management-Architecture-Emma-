@@ -301,3 +301,23 @@ class TelegramLink(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, unique=True)
     telegram_username = Column(String(64))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Notification(Base):
+    """migration_012: a message to one person (website bell + Telegram)."""
+    __tablename__ = "notifications"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"))
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    kind = Column(String(30), nullable=False)
+    title = Column(String(200), nullable=False)
+    body = Column(Text)
+    entity_type = Column(String(40))
+    entity_id = Column(UUID(as_uuid=True))
+    link_tab = Column(String(30))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    read_at = Column(DateTime(timezone=True))
+    telegram_status = Column(String(20))
+    followup_sent_at = Column(DateTime(timezone=True))

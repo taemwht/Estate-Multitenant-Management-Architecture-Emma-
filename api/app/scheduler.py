@@ -72,6 +72,9 @@ def start_scheduler() -> None:
     # Daily at 8am SERVER time — no timezone pinned here, worth revisiting
     # once this runs somewhere other than a dev machine.
     _scheduler.add_job(run_reminder_sweep, "cron", hour=8, minute=0, id="annual_checkin_reminders")
+    # Unread job notifications get one automatic follow-up (notify.py).
+    from .notify import followup_sweep
+    _scheduler.add_job(followup_sweep, "interval", minutes=15, id="notification_followups")
     _scheduler.start()
 
 
