@@ -7,7 +7,7 @@ from .config import settings
 from .routers import (
     auth, rental_units, tenants, leases, rent_receipts, security_deposits,
     contractors, maintenance_requests, contractor_payments, annual_checkins,
-    bulk_import, dashboard, users, companies, my_jobs, notifications,
+    bulk_import, dashboard, users, companies, my_jobs, notifications, lease_documents,
 )
 from .chat.router import router as chat_router
 from .telegram import bot as telegram_bot
@@ -38,6 +38,7 @@ if _origins:
 
 app.include_router(chat_router)
 app.include_router(notifications.router)
+app.include_router(lease_documents.router)
 app.include_router(telegram_router)
 app.include_router(users.router)
 app.include_router(companies.router)

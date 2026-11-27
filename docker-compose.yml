@@ -22,6 +22,8 @@ services:
       TELEGRAM_BOT_FOR: ${TELEGRAM_BOT_FOR:-demo}
     ports:
       - "127.0.0.1:8000:8000"
+    volumes:
+      - ./files:/srv/files   # signed lease PDFs (git-ignored; include in backups)
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

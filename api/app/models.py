@@ -321,3 +321,18 @@ class Notification(Base):
     read_at = Column(DateTime(timezone=True))
     telegram_status = Column(String(20))
     followup_sent_at = Column(DateTime(timezone=True))
+
+
+class LeaseDocument(Base):
+    """migration_013: a signed lease PDF (file on disk under FILES_DIR)."""
+    __tablename__ = "lease_documents"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False)
+    lease_id = Column(UUID(as_uuid=True), ForeignKey("leases.id"), nullable=False)
+    filename = Column(String(255), nullable=False)
+    stored_name = Column(String(80), nullable=False)
+    size_bytes = Column(Integer, nullable=False)
+    uploaded_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_deleted = Column(Boolean, nullable=False, default=False)

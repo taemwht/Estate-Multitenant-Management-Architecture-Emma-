@@ -37,5 +37,8 @@ services:
       TELEGRAM_BOT_FOR: ${TELEGRAM_BOT_FOR:-demo}
     ports:
       - "127.0.0.1:8100:8000"
+    volumes:
+      - demo_files:/srv/files
 volumes:
   demo_pgdata:
+  demo_files:

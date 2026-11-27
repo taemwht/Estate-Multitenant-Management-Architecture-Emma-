@@ -33,3 +33,6 @@ Thumbs.db
 
 # Vercel CLI link for web/ (project + org ids)
 .vercel/
+
+# Uploaded files (signed lease PDFs) - private, never commit
+/files/

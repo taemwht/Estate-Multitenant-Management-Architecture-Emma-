@@ -300,16 +300,34 @@ const money = n => n == null ? "—" : "$" + Number(n).toLocaleString(undefined,
 const day = d => d ? new Date(d.length === 10 ? d + "T00:00:00" : d).toLocaleDateString() : "—";
 const today = () => new Date().toISOString().slice(0,10);
 
+// One renewal at a time: pages fire several requests at once, and they
+// should all wait for the same renewal. true = renewed, false = the
+// refresh token is no longer valid (sign in again), null = server hiccup.
+let renewing = null;
+function renewAccess(){
+  if (!renewing) renewing = (async () => {
+    try {
+      const r = await fetch(API + "/auth/refresh", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({refresh_token: store.get("refresh")})});
+      if (r.ok) { store.set("access", (await r.json()).access_token); return true; }
+      return r.status === 401 || r.status === 403 ? false : null;
+    } catch { return null; }
+  })().finally(() => setTimeout(() => { renewing = null; }, 0));
+  return renewing;
+}
 async function api(method, path, body, retry = true){
   const headers = {"Content-Type":"application/json"};
   const t = store.get("access"); if (t) headers.Authorization = "Bearer " + t;
   let res;
   try { res = await fetch(API + path, {method, headers, body: body ? JSON.stringify(body) : undefined}); }
   catch { throw Object.assign(new Error("Can't reach the API. The server PC may be off."), {status:0}); }
-  if (res.status === 401 && retry && store.get("refresh") && !path.startsWith("/auth/")) {
-    const r = await fetch(API + "/auth/refresh", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({refresh_token: store.get("refresh")})});
-    if (r.ok) { store.set("access", (await r.json()).access_token); return api(method, path, body, false); }
-    logout(); throw Object.assign(new Error("Session expired, please sign in again."), {status:401});
+  // The access token lasts 15 minutes; renew it quietly with the refresh
+  // token (7 days) on any 401, including /auth/me. Only login/refresh
+  // themselves are excluded.
+  if (res.status === 401 && retry && store.get("refresh") && path !== "/auth/login" && path !== "/auth/refresh") {
+    const ok = await renewAccess();
+    if (ok) return api(method, path, body, false);
+    if (ok === false) { logout(); throw Object.assign(new Error("Session expired, please sign in again."), {status:401}); }
+    throw Object.assign(new Error("Can't reach the API right now. Please try again."), {status:0});
   }
   const text = await res.text(); let data = null; try { data = text ? JSON.parse(text) : null; } catch { data = {detail: text.slice(0, 200)}; }
   if (!res.ok) {
@@ -319,6 +337,45 @@ async function api(method, path, body, retry = true){
   return data;
 }
 const get = p => api("GET", p);
+// Like api() but returns the raw Response (files, uploads), renewing the login once if needed.
+async function authFetch(path, opts = {}, retry = true){
+  const headers = {...(opts.headers || {})}; const t = store.get("access"); if (t) headers.Authorization = "Bearer " + t;
+  const res = await fetch(API + path, {...opts, headers});
+  if (res.status === 401 && retry && store.get("refresh")) { const ok = await renewAccess(); if (ok) return authFetch(path, opts, false); if (ok === false) logout(); }
+  return res;
+}
+const errText = async res => { try { const d = await res.json(); return Array.isArray(d.detail) ? d.detail.map(x => x.msg).join("; ") : d.detail || res.statusText; } catch { return res.statusText; } };
+// Open a signed lease PDF in a new tab. The tab is opened first (so pop-up blockers allow it), then filled.
+async function openDoc(leaseId, docId){
+  // A tab can't carry the login, so ask for a private 2-minute link to this one file.
+  const w = window.open("", "_blank");
+  try {
+    const {url} = await api("POST", `/leases/${leaseId}/documents/${docId}/link`);
+    const full = (API.startsWith("http") ? API : location.origin + API) + "/" + url;
+    if (w) w.location.href = full; else location.href = full;
+  } catch (e) { if (w) w.close(); alert(e.message); }
+}
+function pickPdf(leaseId, done){
+  const inp = document.createElement("input"); inp.type = "file"; inp.accept = "application/pdf,.pdf";
+  inp.onchange = async () => {
+    const file = inp.files[0]; if (!file) return;
+    if (file.size > 20 * 1024 * 1024) return alert("That PDF is larger than 20 MB.");
+    const fd = new FormData(); fd.append("file", file);
+    const res = await authFetch(`/leases/${leaseId}/documents`, {method: "POST", body: fd});
+    if (!res.ok) return alert(await errText(res));
+    done();
+  };
+  inp.click();
+}
+const docLinks = (docs, leaseId, canDelete) => docs.map(d => `<span style="display:inline-flex;align-items:center;gap:4px;margin:0 6px 4px 0">
+  <button class="btn sm ghost" data-doc="${d.id}" data-lease="${leaseId}" title="${esc(d.filename)} · uploaded ${day(d.uploaded_at)}">📄 ${esc(d.filename.length > 22 ? d.filename.slice(0, 20) + "…" : d.filename)}</button>${canDelete ? `<button class="btn sm ghost" data-docdel="${d.id}" data-lease="${leaseId}" title="Remove this PDF" aria-label="Remove">✕</button>` : ""}</span>`).join("");
+function wireDocs(v){
+  v.querySelectorAll("[data-doc]").forEach(b => b.onclick = e => { e.stopPropagation(); openDoc(b.dataset.lease, b.dataset.doc); });
+  v.querySelectorAll("[data-docdel]").forEach(b => b.onclick = async e => { e.stopPropagation();
+    if (!confirm("Remove this PDF from the lease?")) return;
+    try { await api("DELETE", `/leases/${b.dataset.lease}/documents/${b.dataset.docdel}`); } catch (err) { alert(err.message); } reload(); });
+  v.querySelectorAll("[data-upload]").forEach(b => b.onclick = e => { e.stopPropagation(); pickPdf(b.dataset.upload, reload); });
+}
 async function getMany(paths){ const out = {}; await Promise.all(Object.entries(paths).map(async ([k,p]) => { out[k] = await get(p); })); return out; }
 
 function logout(){ notesStop(); chatReset(); shown = null; store.set("access", null); store.set("refresh", null); me = company = null; cache = {}; render(); }
@@ -445,7 +502,7 @@ TABS.staff = TABS.company_admin.filter(([k]) => k !== "accounts");
 async function render(){
   if (!store.get("access")) return signedOut();
   try { me = await get("/auth/me"); company = me.company_id ? await get("/companies/me").catch(() => null) : null; }
-  catch (e) { if (e.status === 0) { $app.innerHTML = `<div class="card" style="margin-top:24px"><h2>API unreachable</h2><p class="muted">${esc(e.message)}</p><button class="btn" onclick="render()">Retry</button></div>`; return; } return logout(); }
+  catch (e) { if (e.status !== 401) { $app.innerHTML = `<div class="card" style="margin-top:24px"><h2>API unreachable</h2><p class="muted">${esc(e.message)}</p><button class="btn" onclick="render()">Retry</button></div>`; return; } return logout(); }
   $who.innerHTML = `<span class="badge">${esc(ROLE_LABEL[me.role] || me.role)}</span><span>${esc(me.username)}${company ? " · " + esc(company.name) : ""}</span><button class="bell" id="bell" type="button" aria-label="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 20a1.9 1.9 0 0 0 3.4 0"/></svg><b id="bellN" hidden></b></button><button class="btn ghost sm" id="out">Sign out</button>`;
   document.getElementById("out").onclick = logout;
   document.getElementById("bell").onclick = notesToggle;
@@ -490,15 +547,18 @@ const companyMap = async () => me.role === "super_admin" ? Object.fromEntries((a
 /* ---------------- views ---------------- */
 const VIEWS = {
   async home(v){
-    const {leases, units, reqs} = await getMany({leases:"/leases", units:"/rental-units", reqs:"/maintenance-requests"});
+    const {leases, units, reqs, docs} = await getMany({leases:"/leases", units:"/rental-units", reqs:"/maintenance-requests", docs:"/lease-documents"});
     if (!leases.length) { v.innerHTML = `<div class="card"><h2>No lease yet</h2><p class="muted">Your property manager hasn't linked a lease to your account.</p></div>`; return; }
     const unitById = Object.fromEntries(units.map(u => [u.id, u]));
     const parts = await Promise.all(leases.map(async l => ({l, ar: await get(`/leases/${l.id}/arrears`)})));
     v.innerHTML = parts.map(({l, ar}) => {
       const u = unitById[l.rental_unit_id];
       return `<h1>${esc(u ? u.address_line1 || u.unit_reference : "Your home")}</h1><p class="sub">${u ? esc([u.unit_reference, u.city].filter(Boolean).join(" · ")) : ""} · lease since ${day(l.start_date)} ${statusBadge(l.status)}</p>
+      <div class="card" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 18px"><b style="font-size:14px">Your lease</b>
+        <span class="muted" style="font-size:13px">${day(l.start_date)} → ${l.end_date ? day(l.end_date) : "month-to-month"}</span><span class="spacer"></span>
+        ${docs.some(d => d.lease_id === l.id) ? docLinks(docs.filter(d => d.lease_id === l.id), l.id, false) : `<span class="muted" style="font-size:13px">Signed copy not uploaded yet</span>`}</div>
       <div class="stats">
-        <div class="stat"><b>${money(l.monthly_rent)}</b><span>Monthly rent, due day ${l.due_day_of_month}</span></div>
+        <div class="stat"><b>${money(l.monthly_rent)}</b><span>Monthly rent, due on the ${l.due_day_of_month}${["th","st","nd","rd"][(l.due_day_of_month % 100 - 20) % 10] || ["th","st","nd","rd"][l.due_day_of_month % 100] || "th"}</span></div>
         <div class="stat jump" data-jump="payments" title="Open Payments"><b style="color:${ar.total_owed>0?"var(--bad)":"var(--ok)"}">${money(ar.total_owed)}</b><span>Currently owed</span></div>
         <div class="stat jump" data-jump="payments" title="Open Payments"><b>${money(ar.total_paid)}</b><span>Paid since move-in</span></div>
         <div class="stat"><b>${money(ar.credit_balance)}</b><span>Credit</span></div>
@@ -511,6 +571,7 @@ const VIEWS = {
         {h:"Outstanding", num:1, f:r => r.outstanding > 0 ? `<b style="color:var(--bad)">${money(r.outstanding)}</b>` : money(0)},
       ], ar.monthly_breakdown.slice().reverse())}</div>`;
     }).join("") + (() => {
+      setTimeout(() => wireDocs(v));
       const open = reqs.filter(q => !["Completed","Verified","Cancelled"].includes(q.status));
       return `<div class="card jump" data-jump="maint" title="Open Maintenance"><div class="head-row"><h2>Your repairs</h2><span class="go">Maintenance →</span></div>${table([
         {h:"Problem", f:q => esc(q.description)}, {h:"Priority", f:q => esc(q.priority)},
@@ -614,8 +675,9 @@ const VIEWS = {
   },
 
   async leases(v){
-    const [{leases, units}, cos] = [await getMany({leases:"/leases", units:"/rental-units"}), await companyMap()];
+    const [{leases, units, docs}, cos] = [await getMany({leases:"/leases", units:"/rental-units", docs:"/lease-documents"}), await companyMap()];
     const tenants = me.role === "super_admin" || canWork() ? await get("/tenants") : [];
+    const docsFor = id => docs.filter(d => d.lease_id === id);
     const unitRef = Object.fromEntries(units.map(u => [u.id, u.unit_reference]));
     const tName = Object.fromEntries(tenants.map(t => [t.id, t.name]));
     const busy = new Set(leases.filter(l => l.status === "active").map(l => l.rental_unit_id));
@@ -623,22 +685,30 @@ const VIEWS = {
         <label>Unit<select name="rental_unit_id" required>${units.filter(u => !busy.has(u.id)).map(u => `<option value="${u.id}">${esc(u.unit_reference)}</option>`).join("") || `<option value="">No vacant units</option>`}</select></label>
         <label>Tenant(s)<select name="tenant_ids" multiple required>${tenants.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label>
         <label>Start<input name="start_date" type="date" required value="${today()}"></label>
+        <label>End <span class="muted">(blank = month-to-month)</span><input name="end_date" type="date"></label>
         <label>Rent / month<input name="monthly_rent" type="number" step="0.01" min="0" required></label>
-        <label>Due day<input name="due_day_of_month" type="number" min="1" max="31" value="1" required></label>
+        <label title="Day of the month the rent is due, e.g. 1 = the 1st">Rent due on day<input name="due_day_of_month" type="number" min="1" max="31" value="1" required></label>
         <button class="btn" type="submit">Create lease</button></form><div class="fmsg"></div></div>` : ""}
       <div class="card"><h2>Leases</h2>${table([
         ...(me.role==="super_admin" ? [{h:"Company", f:r => esc(cos[r.company_id])}] : []),
         {h:"Unit", f:r => `<b>${esc(unitRef[r.rental_unit_id] || "—")}</b>`},
         {h:"Tenants", f:r => esc(r.tenant_ids.map(id => tName[id] || "…").join(", "))},
-        {h:"Start", f:r => day(r.start_date)}, {h:"Rent", num:1, f:r => money(r.monthly_rent)},
+        {h:"Start", f:r => day(r.start_date)},
+        {h:"End", f:r => canWork() && r.status === "active" ? `<input type="date" data-end="${r.id}" value="${r.end_date || ""}" title="Lease end date (blank = month-to-month)">`
+          : r.end_date ? day(r.end_date) : `<span class="muted">Month-to-month</span>`},
+        {h:"Rent", num:1, f:r => money(r.monthly_rent)},
         {h:"Status", f:r => statusBadge(r.status)},
         {h:"Owed", num:1, f:r => `<span data-owed="${r.id}" class="muted">…</span>`},
+        {h:"Signed lease", f:r => `${docLinks(docsFor(r.id), r.id, isCoAdmin())}${canWork() ? `<button class="btn sm ghost" data-upload="${r.id}" title="Upload the signed lease (PDF)">⬆ Upload PDF</button>` : docsFor(r.id).length ? "" : `<span class="muted">—</span>`}`},
       ], leases)}</div>`;
+    wireDocs(v);
+    v.querySelectorAll("[data-end]").forEach(i => i.onchange = async () => {
+      try { await api("PATCH", `/leases/${i.dataset.end}`, {end_date: i.value || null}); } catch (e) { alert(e.message); } reload(); });
     leases.forEach(async l => { const el = v.querySelector(`[data-owed="${l.id}"]`); try { const a = await get(`/leases/${l.id}/arrears`); el.className = ""; el.innerHTML = a.total_owed > 0 ? `<b style="color:var(--bad)">${money(a.total_owed)}</b>` : money(0); } catch { el.textContent = "—"; } });
     const f = document.getElementById("fl");
     if (f) f.onsubmit = async e => {
       e.preventDefault(); const d = new FormData(f);
-      try { await api("POST","/leases",{rental_unit_id:d.get("rental_unit_id"), tenant_ids:d.getAll("tenant_ids"), start_date:d.get("start_date"), monthly_rent:+d.get("monthly_rent"), due_day_of_month:+d.get("due_day_of_month")}); reload(); }
+      try { await api("POST","/leases",{rental_unit_id:d.get("rental_unit_id"), tenant_ids:d.getAll("tenant_ids"), start_date:d.get("start_date"), ...(d.get("end_date") ? {end_date:d.get("end_date")} : {}), monthly_rent:+d.get("monthly_rent"), due_day_of_month:+d.get("due_day_of_month")}); reload(); }
       catch (err) { flash(f.parentElement.querySelector(".fmsg"), err.message); }
     };
   },

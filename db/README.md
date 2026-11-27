@@ -42,6 +42,7 @@ psql -U postgres -d property_platform -f migration_009_usernames.sql
 psql -U postgres -d property_platform -f migration_010_telegram_links.sql
 psql -U postgres -d property_platform -f migration_011_payment_details.sql
 psql -U postgres -d property_platform -f migration_012_notifications.sql
+psql -U postgres -d property_platform -f migration_013_lease_documents.sql
 ```
 
 Every migration is safe to re-run. Migration 008 also does the app-role

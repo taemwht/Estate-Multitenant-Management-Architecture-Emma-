@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     # Which copy of the API this is ("real" or "demo"), and which one runs
     # the Telegram bot. Only one process may poll a bot token at a time.
     app_instance: str = "real"
+    # Where uploaded files (signed lease PDFs) are kept. Mounted from the
+    # host in docker-compose so they survive rebuilds and can be backed up.
+    files_dir: str = "/srv/files"
     telegram_bot_token: str = ""
     telegram_bot_for: str = "demo"
 
