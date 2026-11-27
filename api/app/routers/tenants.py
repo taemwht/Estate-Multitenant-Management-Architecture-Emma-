@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from ..accounts import check_password, clean_username, ensure_free
 from ..audit import write_audit_log
 from ..database import get_db, super_admin_session
 from ..security import hash_password
@@ -195,27 +196,23 @@ def create_tenant_login(
     """Give a tenant record a portal login (a `tenant`-role user in the
     same company, linked through tenants.user_id). The tenant then signs
     in with /auth/login and only sees their own lease data."""
-    if len(body.password) < 8:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                             detail="Password must be at least 8 characters")
+    username = clean_username(body.username)
+    check_password(body.password)
     tenant = db.query(Tenant).filter(Tenant.id == tenant_id, Tenant.is_deleted.is_(False)).first()
     if not tenant:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     if tenant.user_id is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This tenant already has a login")
 
-    # Emails are unique across ALL companies, so the duplicate check has to
-    # look past RLS. It only reveals "taken or not".
-    with super_admin_session(db, company_id=str(current_user.company_id)):
-        taken = db.query(User.id).filter(User.email == body.email).first()
-    if taken:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+    email = body.email or tenant.email
+    ensure_free(db, username, email, current_user.company_id)
 
     user = User(
         id=uuid.uuid4(),
         company_id=current_user.company_id,
         role="tenant",
-        email=body.email,
+        username=username,
+        email=email,
         password_hash=hash_password(body.password),
     )
     db.add(user)
@@ -226,7 +223,7 @@ def create_tenant_login(
     write_audit_log(
         db, company_id=current_user.company_id, actor_id=current_user.id,
         actor_type=actor_type, action="create_login", entity_type="tenant",
-        entity_id=tenant.id, after_state={"email": body.email},
+        entity_id=tenant.id, after_state={"username": username},
     )
 
     result = TenantOut.model_validate(tenant)

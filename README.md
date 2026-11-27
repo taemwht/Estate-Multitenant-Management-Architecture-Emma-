@@ -18,7 +18,7 @@ Everything lives in this one repo (no submodules):
 |---|---|
 | `Dockerfile`, `docker-compose.yml`, `data/finished-skills/` | EMMA agent and skill definitions (`house-crud`, `tenant-crud`, `rent-crud`, `maintenance-crud`, `pit-crew-crud`) |
 | `api/` | FastAPI backend — routers, models, auth, role scoping, database access |
-| `db/` | PostgreSQL schema, migrations 002–008, RLS verification scripts |
+| `db/` | PostgreSQL schema, migrations 002–009, RLS verification scripts |
 | `demo/` | Public demo stack: its own Postgres + API (127.0.0.1:8100) with seeded demo data |
 
 ## Roles

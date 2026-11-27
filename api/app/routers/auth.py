@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from jose import JWTError
 from sqlalchemy.orm import Session
 
@@ -17,17 +18,20 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
     # this lookup — so it has to run with the bypass. Scoped narrowly
     # to this one query, and email is globally unique, so this isn't
     # exposing anything cross-company beyond "does this email exist."
+    invalid = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Incorrect username or password",
+    )
+    ident = (body.username or body.email or "").strip().lower()
+    if not ident:
+        raise invalid
+    column = User.email if "@" in ident else User.username
     with super_admin_session(db):
         user = (
             db.query(User)
-            .filter(User.email == body.email, User.is_deleted.is_(False))
+            .filter(func.lower(column) == ident, User.is_deleted.is_(False))
             .first()
         )
-
-    invalid = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Incorrect email or password",
-    )
 
     if not user or not verify_password(body.password, user.password_hash):
         raise invalid

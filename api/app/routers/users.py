@@ -19,13 +19,13 @@ from ..audit import write_audit_log
 from ..database import get_db, super_admin_session
 from ..deps import get_actor_type, require_roles
 from ..models import Contractor, Tenant, User
+from ..accounts import check_password, clean_username, ensure_free
 from ..schemas import UserCreate, UserOut
 from ..scoping import ACCOUNT_VIEW_ROLES, ADMIN_ROLES
 from ..security import hash_password
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-MIN_PASSWORD_LENGTH = 8
 ADDABLE_ROLES = ("staff", "company_admin")
 
 
@@ -37,7 +37,7 @@ def list_users(
     return (
         db.query(User)
         .filter(User.is_deleted.is_(False))
-        .order_by(User.role, User.email)
+        .order_by(User.role, User.username)
         .all()
     )
 
@@ -53,21 +53,18 @@ def create_user(
     if body.role not in ADDABLE_ROLES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f"role must be one of {ADDABLE_ROLES}")
-    if len(body.password) < MIN_PASSWORD_LENGTH:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"Password must be at least {MIN_PASSWORD_LENGTH} characters")
+    username = clean_username(body.username)
+    check_password(body.password)
     company_id = current_user.company_id
-    with super_admin_session(db, company_id=company_id):  # email must be unique platform-wide
-        if db.query(User).filter(User.email == body.email).first():
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
-    user = User(id=uuid.uuid4(), company_id=company_id, role=body.role,
+    ensure_free(db, username, body.email, company_id)
+    user = User(id=uuid.uuid4(), company_id=company_id, role=body.role, username=username,
                 email=body.email, password_hash=hash_password(body.password))
     db.add(user)
     db.flush()
     write_audit_log(
         db, company_id=company_id, actor_id=current_user.id, actor_type=actor_type,
         action="create", entity_type="user", entity_id=user.id,
-        after_state={"email": body.email, "role": body.role},
+        after_state={"username": username, "role": body.role},
     )
     result = UserOut.model_validate(user)
     db.commit()
@@ -115,6 +112,6 @@ def remove_user(
     write_audit_log(
         db, company_id=company_id, actor_id=current_user.id, actor_type=actor_type,
         action="soft_delete", entity_type="user", entity_id=user_id,
-        before_state={"email": user.email, "role": user.role},
+        before_state={"username": user.username, "role": user.role},
     )
     db.commit()

@@ -8,12 +8,16 @@ from pydantic import BaseModel, EmailStr
 class CompanyCreate(BaseModel):
     """Super admin creating a company and its first company admin."""
     company_name: str
-    admin_email: EmailStr
+    admin_username: str
     admin_password: str
+    admin_email: Optional[EmailStr] = None
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    """Sign in with a username. `email` is still accepted (EMMA's skills
+    sign in that way), and a username field holding an email works too."""
+    username: Optional[str] = None
+    email: Optional[str] = None
     password: str
 
 
@@ -36,7 +40,8 @@ class UserOut(BaseModel):
     id: UUID
     company_id: Optional[UUID]
     role: str
-    email: str
+    username: str
+    email: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -55,20 +60,23 @@ class TenantUpdate(BaseModel):
 
 
 class TenantLoginCreate(BaseModel):
-    email: EmailStr
+    username: str
     password: str
+    email: Optional[EmailStr] = None
 
 
 class LoginCreate(BaseModel):
     """A login for an existing contractor record."""
-    email: EmailStr
+    username: str
     password: str
+    email: Optional[EmailStr] = None
 
 
 class UserCreate(BaseModel):
     """Company admin adding a staff member or another admin."""
-    email: EmailStr
+    username: str
     password: str
+    email: Optional[EmailStr] = None
     role: str  # "staff" or "company_admin"
 
 

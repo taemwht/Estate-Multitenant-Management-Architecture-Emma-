@@ -31,7 +31,8 @@ class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True)
     role = Column(String(20), nullable=False)
-    email = Column(String(255), nullable=False, unique=True)
+    username = Column(String(50), nullable=False)  # unique on lower(username), migration 009
+    email = Column(String(255), nullable=True, unique=True)
     password_hash = Column(String(255), nullable=False)
     telegram_link_id = Column(String(255), unique=True, nullable=True)
     is_deleted = Column(Boolean, nullable=False, default=False)

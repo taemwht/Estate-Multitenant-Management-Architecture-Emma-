@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from ..accounts import check_password, clean_username, ensure_free
 from ..audit import write_audit_log
 from ..database import get_db, super_admin_session
 from ..deps import require_roles, get_actor_type
@@ -268,9 +269,8 @@ def create_contractor_login(
     contractor can do this. The login has no company of its own: a
     contractor signs in and sees only the jobs assigned to them, in
     whichever companies use them (GET /my-jobs)."""
-    if len(body.password) < 8:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail="Password must be at least 8 characters")
+    username = clean_username(body.username)
+    check_password(body.password)
     contractor = _get_visible(db, contractor_id, current_user)
     if contractor.created_by_company_id != current_user.company_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
@@ -279,12 +279,12 @@ def create_contractor_login(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This contractor already has a login")
 
     company_id = current_user.company_id
+    email = body.email or contractor.contact_email
+    ensure_free(db, username, email, company_id)
     # A company-less user row is only insertable (and visible) under the bypass.
     with super_admin_session(db, company_id=str(company_id)):
-        if db.query(User.id).filter(User.email == body.email).first():
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
-        user = User(id=uuid.uuid4(), company_id=None, role="contractor",
-                    email=body.email, password_hash=hash_password(body.password))
+        user = User(id=uuid.uuid4(), company_id=None, role="contractor", username=username,
+                    email=email, password_hash=hash_password(body.password))
         db.add(user)
         db.flush()
         contractor.user_id = user.id
@@ -293,7 +293,7 @@ def create_contractor_login(
     write_audit_log(
         db, company_id=company_id, actor_id=current_user.id,
         actor_type=actor_type, action="create_login", entity_type="contractor",
-        entity_id=contractor.id, after_state={"email": body.email},
+        entity_id=contractor.id, after_state={"username": username},
     )
     result = _to_out(db, contractor, current_user)
     db.commit()

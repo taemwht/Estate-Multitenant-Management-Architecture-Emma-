@@ -38,6 +38,7 @@ psql -U postgres -d property_platform -f migration_005_rent_rate_history_softdel
 psql -U postgres -d property_platform -f migration_006_maintenance_gaps.sql
 psql -U postgres -d property_platform -f migration_007_pit_crew_gaps.sql
 psql -U postgres -d property_platform -f migration_008_review_fixes.sql
+psql -U postgres -d property_platform -f migration_009_usernames.sql
 ```
 
 Every migration is safe to re-run. Migration 008 also does the app-role

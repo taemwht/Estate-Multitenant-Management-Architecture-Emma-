@@ -34,25 +34,25 @@ def main():
     accounts = []
     try:
         set_rls_context(db, company_id=None, is_super_admin=True)
-        if db.query(User).filter(User.email == "superadmin@example.com").first():
+        if db.query(User).filter(User.username == "superadmin").first():
             sys.exit("Demo data already seeded; nothing to do.")
 
-        def user(role, company_id, email):
+        def user(role, company_id, username, email=None):
             pw = secrets.token_urlsafe(9)
-            u = User(id=uuid.uuid4(), company_id=company_id, role=role,
+            u = User(id=uuid.uuid4(), company_id=company_id, role=role, username=username,
                      email=email, password_hash=hash_password(pw))
             db.add(u)
-            accounts.append((role, email, pw))
+            accounts.append((role, username, pw))
             return u
 
-        user("super_admin", None, "superadmin@example.com")
+        user("super_admin", None, "superadmin")
 
         def company(name, slug, units):
             co = Company(id=uuid.uuid4(), name=name)
             db.add(co)
             db.flush()
-            admin = user("company_admin", co.id, f"admin@{slug}.example.com")
-            user("staff", co.id, f"staff@{slug}.example.com")
+            admin = user("company_admin", co.id, f"{slug}.admin")
+            user("staff", co.id, f"{slug}.staff")
             db.flush()
 
             leases, requests = [], []
@@ -64,7 +64,7 @@ def main():
                                 email=f"{tenant_name.split()[0].lower()}@{slug}.example.com")
                 db.add_all([unit, tenant])
                 db.flush()
-                tu = user("tenant", co.id, tenant.email)
+                tu = user("tenant", co.id, tenant_name.split()[0].lower(), tenant.email)
                 db.flush()
                 tenant.user_id = tu.id
 
@@ -105,7 +105,7 @@ def main():
             db.flush()
             # The contractor gets a login and one scheduled job, so the
             # contractor view ("My jobs") has something to show.
-            cu = user("contractor", None, f"plumber@{slug}.example.com")
+            cu = user("contractor", None, f"{slug}.plumber")
             db.flush()
             c.user_id = cu.id
             job = requests[-1]
@@ -132,7 +132,7 @@ def main():
 
     print("Demo accounts (save these; passwords are not stored anywhere else):")
     for role, email, pw in accounts:
-        print(f"  {role:<14} {email:<32} {pw}")
+        print(f"  {role:<14} {email:<20} {pw}")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 """
-Creates one company + one company_admin user, so you have something
-to log in with while /auth/signup doesn't exist yet (that's PRD 5.8 —
-self-serve signup — one of the deferred open items).
+Creates one company + one company_admin user from the command line.
+Normally the super admin does this on the website (Companies tab) or with
+POST /companies; there is no public signup.
 
 Run from the project root:
     python scripts/create_first_admin.py
@@ -19,7 +19,8 @@ from app.security import hash_password  # noqa: E402
 
 def main():
     company_name = input("Company name: ").strip()
-    email = input("Admin email: ").strip()
+    username = input("Admin username: ").strip().lower()
+    email = input("Admin email (optional): ").strip() or None
     password = getpass("Admin password: ")
 
     db = SessionLocal()
@@ -40,6 +41,7 @@ def main():
             id=uuid.uuid4(),
             company_id=company.id,
             role="company_admin",
+            username=username,
             email=email,
             password_hash=hash_password(password),
         )
@@ -47,7 +49,7 @@ def main():
         db.commit()
 
         print(f"\nCreated company '{company.name}' ({company.id})")
-        print(f"Created admin user '{user.email}' ({user.id})")
+        print(f"Created admin user '{user.username}' ({user.id})")
     except Exception:
         db.rollback()
         raise
