@@ -220,6 +220,9 @@ footer{color:var(--faint);font-size:12.5px;text-align:center;padding:28px 16px;b
 .deliv{font-size:11.5px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-family:var(--mono)}
 .deliv .r{color:var(--ok)} .deliv .u{color:var(--warn)}
 .head-row{display:flex;align-items:center;gap:10px;margin-bottom:14px} .head-row h2{margin:0;flex:1}
+.card.jump{cursor:pointer;transition:border-color .15s,transform .15s}
+.card.jump:hover{border-color:color-mix(in srgb,var(--accent) 45%,transparent);transform:translateY(-1px)}
+.card.jump .go{font-size:12.5px;color:var(--muted);font-family:var(--mono)} .card.jump:hover .go{color:var(--accent2)}
 /* ---------- Ask EMMA chat ---------- */
 #chatFab{position:fixed;right:22px;bottom:22px;z-index:40;display:none;align-items:center;gap:9px;padding:12px 18px 12px 14px;border-radius:999px;font-size:14.5px;box-shadow:0 0 0 1px rgba(255,255,255,.12) inset,0 12px 32px -8px rgba(79,141,255,.75)}
 #chatFab svg{width:19px;height:19px}
@@ -525,17 +528,18 @@ const VIEWS = {
       <div class="stat"><b>${money(s.security_deposits_held)}</b><span>Deposits held</span></div>
       <div class="stat"><b>${s.annual_checkins_acknowledged}/${s.annual_checkins_total}</b><span>Check-ins acknowledged</span></div>
     </div>
-    <div class="card"><h2>Overdue this month</h2>${table([
+    <div class="card jump" data-jump="payments" title="Open Payments"><div class="head-row"><h2>Overdue this month</h2><span class="go">Payments →</span></div>${table([
         {h:"Due", f:r => `${dueOf(r).toLocaleDateString(undefined, {month:"short", day:"numeric", year:"numeric"})}<div class="muted" style="font-size:12px">${late(r)} day${late(r) === 1 ? "" : "s"} late</div>`},
         {h:"Unit", f:r => `<b>${esc(r.unit_reference)}</b>`}, {h:"Tenants", f:r => esc(r.tenant_names.join(", "))},
         {h:"Amount owed", num:1, f:r => owed[r.lease_id] == null ? "—" : `<b style="color:var(--bad)">${money(owed[r.lease_id])}</b>`},
         {h:"Rent", num:1, f:r => money(r.monthly_rent)}, {h:"Paid this month", num:1, f:r => money(r.amount_paid_this_month)},
       ], overdue, "Everyone is paid up.")}</div>
     <div class="grid">
-      <div class="card"><h2>Maintenance by status</h2>${table([
+      <div class="card jump" data-jump="maint" title="Open Maintenance"><div class="head-row"><h2>Maintenance by status</h2><span class="go">Maintenance →</span></div>${table([
         {h:"Status", f:r => statusBadge(r[0])}, {h:"Requests", num:1, f:r => r[1]},
       ], Object.entries(s.maintenance_by_status), "No requests.")}</div>
     </div>`;
+    v.querySelectorAll("[data-jump]").forEach(c => c.onclick = () => { tab = c.dataset.jump; render(); window.scrollTo({top: 0}); });
   },
 
   async units(v){
