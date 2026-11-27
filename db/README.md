@@ -40,6 +40,7 @@ psql -U postgres -d property_platform -f migration_007_pit_crew_gaps.sql
 psql -U postgres -d property_platform -f migration_008_review_fixes.sql
 psql -U postgres -d property_platform -f migration_009_usernames.sql
 psql -U postgres -d property_platform -f migration_010_telegram_links.sql
+psql -U postgres -d property_platform -f migration_011_payment_details.sql
 ```
 
 Every migration is safe to re-run. Migration 008 also does the app-role

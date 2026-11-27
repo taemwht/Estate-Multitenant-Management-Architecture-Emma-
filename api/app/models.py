@@ -92,6 +92,10 @@ class RentReceipt(Base):
     amount = Column(Numeric(10, 2), nullable=False)
     date_received = Column(Date, nullable=False)
     method = Column(String(20), nullable=False)
+    method_detail = Column(String(120))           # migration_011
+    paid_by_tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"))
+    paid_by_name = Column(String(120))
+    for_month = Column(Date)
     late_fee = Column(Numeric(10, 2), nullable=False, default=0)
     recorded_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     notes = Column(Text)

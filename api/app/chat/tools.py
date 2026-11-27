@@ -73,8 +73,8 @@ TOOLS = [
 
     # payments and deposits
     Tool("list_rent_payments", "GET", "/rent-receipts", STAFF_AND_TENANT_ROLES, "List rent payments received."),
-    Tool("record_rent_payment", "POST", "/rent-receipts", WRITE, "Record a rent payment received for a lease. method: check, cash or other."),
-    Tool("update_rent_payment", "PATCH", "/rent-receipts/{receipt_id}", WRITE, "Correct a recorded rent payment."),
+    Tool("record_rent_payment", "POST", "/rent-receipts", WRITE, "Record a rent payment received for a lease. method: check, cash, zelle, venmo, bank_transfer, card, money_order or other (put the check number or what 'other' was in method_detail). Set paid_by_tenant_id when a tenant on the lease paid (look them up), or paid_by_name for anyone else. for_month = which month's rent (YYYY-MM-01)."),
+    Tool("update_rent_payment", "PATCH", "/rent-receipts/{receipt_id}", WRITE, "Correct a recorded rent payment (amount, date, method, who paid, which month...)."),
     Tool("delete_rent_payment", "DELETE", "/rent-receipts/{receipt_id}", ADMIN_ROLES, "Remove a recorded rent payment (it can be restored)."),
     Tool("list_deposits", "GET", "/security-deposits", STAFF_AND_TENANT_ROLES, "List security deposits."),
     Tool("record_deposit", "POST", "/security-deposits", WRITE, "Record a security deposit for a lease."),

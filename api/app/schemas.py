@@ -304,7 +304,11 @@ class RentReceiptCreate(BaseModel):
     lease_id: UUID
     amount: float
     date_received: date
-    method: str  # 'check', 'cash', or 'other'
+    method: str  # check, cash, zelle, venmo, bank_transfer, card, money_order, other
+    method_detail: Optional[str] = None      # check number, or what "other" was
+    paid_by_tenant_id: Optional[UUID] = None  # a tenant on this lease
+    paid_by_name: Optional[str] = None        # someone else (subtenant, parent, agency)
+    for_month: Optional[date] = None          # which month's rent (stored as the 1st)
     late_fee: float = 0
     notes: Optional[str] = None
 
@@ -314,6 +318,10 @@ class RentReceiptUpdate(BaseModel):
     amount: Optional[float] = None
     date_received: Optional[date] = None
     method: Optional[str] = None
+    method_detail: Optional[str] = None
+    paid_by_tenant_id: Optional[UUID] = None
+    paid_by_name: Optional[str] = None
+    for_month: Optional[date] = None
     late_fee: Optional[float] = None
     notes: Optional[str] = None
 
@@ -325,6 +333,10 @@ class RentReceiptOut(BaseModel):
     amount: float
     date_received: date
     method: str
+    method_detail: Optional[str] = None
+    paid_by_tenant_id: Optional[UUID] = None
+    paid_by_name: Optional[str] = None
+    for_month: Optional[date] = None
     late_fee: float
     recorded_by: Optional[UUID]
     notes: Optional[str]

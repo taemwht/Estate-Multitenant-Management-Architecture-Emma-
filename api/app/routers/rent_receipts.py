@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from ..audit import write_audit_log
 from ..database import get_db
 from ..deps import require_roles, get_actor_type
-from ..models import RentReceipt, Lease, User
+from ..models import LeaseTenant, RentReceipt, Lease, User
 from ..schemas import RentReceiptCreate, RentReceiptUpdate, RentReceiptOut
 from ..scoping import STAFF_AND_TENANT_ROLES, tenant_scope_for, ensure_lease_visible, ADMIN_ROLES
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/rent-receipts", tags=["rent-receipts"])
 # deposits): Super Admin / Company Admin / Staff = yes, Contractor /
 # Tenant = no. Matches the WRITE_ROLES pattern used elsewhere.
 WRITE_ROLES = ("company_admin", "staff")
-VALID_METHODS = ("check", "cash", "other")
+VALID_METHODS = ("check", "cash", "zelle", "venmo", "bank_transfer", "card", "money_order", "other")
 
 
 def _validate_amounts(method, amount, late_fee):
@@ -27,6 +27,26 @@ def _validate_amounts(method, amount, late_fee):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="amount cannot be negative")
     if late_fee is not None and late_fee < 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="late_fee cannot be negative")
+
+
+def _clean_payer(db: Session, lease_id, fields: dict) -> dict:
+    """Normalizes who-paid / which-month fields in place and validates them:
+    a paying tenant must be on this lease; free-text names are trimmed;
+    for_month is stored as the 1st of its month."""
+    for key in ("method_detail", "paid_by_name"):
+        if key in fields and fields[key] is not None:
+            fields[key] = fields[key].strip()[:120] or None
+    if fields.get("for_month"):
+        fields["for_month"] = fields["for_month"].replace(day=1)
+    tenant_id = fields.get("paid_by_tenant_id")
+    if tenant_id is not None:
+        on_lease = db.query(LeaseTenant).filter(LeaseTenant.lease_id == lease_id,
+                                                LeaseTenant.tenant_id == tenant_id).first()
+        if not on_lease:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="paid_by_tenant_id must be a tenant on this lease "
+                                       "(use paid_by_name for anyone else)")
+    return fields
 
 
 def _get_receipt(db: Session, receipt_id, current_user: User) -> RentReceipt:
@@ -54,6 +74,8 @@ def create_rent_receipt(
     if not lease:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lease not found")
 
+    extra = _clean_payer(db, body.lease_id, body.model_dump(include={
+        "method_detail", "paid_by_tenant_id", "paid_by_name", "for_month"}))
     receipt = RentReceipt(
         id=uuid.uuid4(),
         company_id=current_user.company_id,
@@ -64,6 +86,7 @@ def create_rent_receipt(
         late_fee=body.late_fee,
         recorded_by=current_user.id,
         notes=body.notes,
+        **extra,
     )
     db.add(receipt)
     db.flush()
@@ -132,7 +155,7 @@ def update_rent_receipt(
     receipt = _get_receipt(db, receipt_id, current_user)
     _validate_amounts(body.method, body.amount, body.late_fee)
 
-    changes = body.model_dump(exclude_unset=True)
+    changes = _clean_payer(db, receipt.lease_id, body.model_dump(exclude_unset=True))
     for required in ("amount", "date_received", "method", "late_fee"):
         if required in changes and changes[required] is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,

@@ -572,22 +572,86 @@ const VIEWS = {
   },
 
   async payments(v){
-    const {receipts, leases, units} = await getMany({receipts:"/rent-receipts", leases:"/leases", units:"/rental-units"});
+    const {receipts, leases, units, tenants} = await getMany({receipts:"/rent-receipts", leases:"/leases", units:"/rental-units", tenants:"/tenants"});
     const unitRef = Object.fromEntries(units.map(u => [u.id, u.unit_reference]));
-    const leaseLabel = Object.fromEntries(leases.map(l => [l.id, unitRef[l.rental_unit_id] || "Lease"]));
-    v.innerHTML = `${canWork() ? `<div class="card"><h2>Record a payment</h2><form id="fp" class="row">
-        <label>Lease<select name="lease_id" required>${leases.filter(l => l.status === "active").map(l => `<option value="${l.id}">${esc(leaseLabel[l.id])}</option>`).join("")}</select></label>
-        <label>Amount<input name="amount" type="number" step="0.01" min="0" required></label>
-        <label>Date<input name="date_received" type="date" value="${today()}" required></label>
-        <label>Method<select name="method"><option>check</option><option>cash</option><option>other</option></select></label>
+    const tName = Object.fromEntries(tenants.map(t => [t.id, t.name]));
+    const leaseById = Object.fromEntries(leases.map(l => [l.id, l]));
+    const leaseLabel = l => `${unitRef[l.rental_unit_id] || "Lease"}${l.tenant_ids.length ? " · " + l.tenant_ids.map(id => tName[id] || "tenant").join(", ") : ""}`;
+    const METHOD = {check:"Check", cash:"Cash", zelle:"Zelle", venmo:"Venmo", bank_transfer:"Bank transfer", card:"Card", money_order:"Money order", other:"Other"};
+    const monthName = d => d ? new Date(d.slice(0,7) + "-15T00:00:00").toLocaleDateString(undefined, {month:"short", year:"numeric"}) : "";
+    const thisMonth = new Date().toISOString().slice(0,7);
+    const active = leases.filter(l => l.status === "active");
+    // how much has come in for each lease + month, so a split or partial month is obvious
+    const monthPaid = {};
+    for (const r of receipts) if (r.for_month) { const k = r.lease_id + r.for_month; monthPaid[k] = (monthPaid[k] || 0) + Number(r.amount); }
+    const payer = r => r.paid_by_tenant_id ? esc(tName[r.paid_by_tenant_id] || "Tenant")
+      : r.paid_by_name ? `${esc(r.paid_by_name)} <span class="muted" style="font-size:12px">· not on lease</span>` : `<span class="muted">—</span>`;
+    const payerOptions = (lease, sel) => `${(lease ? lease.tenant_ids : []).map(id => `<option value="${id}" ${id === sel ? "selected" : ""}>${esc(tName[id] || "Tenant")}</option>`).join("")}<option value="" ${sel === "" ? "selected" : ""}>Not recorded</option><option value="other" ${sel === "other" ? "selected" : ""}>Someone else…</option>`;
+    const methodOptions = sel => Object.entries(METHOD).map(([k, l]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${l}</option>`).join("");
+    const fields = (r = {}) => {
+      const lease = leaseById[r.lease_id] || active[0];
+      const sel = r.paid_by_tenant_id || (r.paid_by_name ? "other" : r.id ? "" : (lease && lease.tenant_ids[0]) || "");
+      return `
+        <label>Paid by<select name="payer">${payerOptions(lease, sel)}</select></label>
+        <label data-other style="${sel === "other" ? "" : "display:none"}">Their name<input name="paid_by_name" maxlength="120" value="${esc(r.paid_by_name || "")}" placeholder="e.g. subtenant, parent"></label>
+        <label>Amount paid<input name="amount" type="number" step="0.01" min="0" required value="${r.amount ?? ""}" placeholder="${lease ? "Rent " + money(lease.monthly_rent) : ""}"></label>
+        <label>For month<input name="for_month" type="month" value="${r.id ? (r.for_month || "").slice(0,7) : thisMonth}"></label>
+        <label>Date received<input name="date_received" type="date" value="${r.date_received || today()}" required></label>
+        <label>Method<select name="method">${methodOptions(r.method || "zelle")}</select></label>
+        <label>Details<input name="method_detail" maxlength="120" value="${esc(r.method_detail || "")}" placeholder="Check #, app, reference"></label>
+        <label>Late fee<input name="late_fee" type="number" step="0.01" min="0" value="${r.late_fee ?? 0}"></label>
+        <label style="flex:2 1 220px">Note<input name="notes" value="${esc(r.notes || "")}"></label>`;
+    };
+    const body = (f, isNew) => {
+      const x = Object.fromEntries(new FormData(f));
+      const out = {amount: +x.amount, date_received: x.date_received, method: x.method, late_fee: +(x.late_fee || 0),
+        method_detail: x.method_detail.trim() || null, notes: x.notes.trim() || null,
+        for_month: x.for_month ? x.for_month + "-01" : null,
+        paid_by_tenant_id: x.payer && x.payer !== "other" ? x.payer : null,
+        paid_by_name: x.payer === "other" ? (x.paid_by_name.trim() || null) : null};
+      if (isNew) out.lease_id = x.lease_id;
+      return out;
+    };
+    const wire = (f, lease) => {
+      const sel = f.querySelector("[name=payer]"), other = f.querySelector("[data-other]");
+      sel.onchange = () => { other.style.display = sel.value === "other" ? "" : "none"; };
+      const ls = f.querySelector("[name=lease_id]");
+      if (ls) ls.onchange = () => { const l = leaseById[ls.value]; sel.innerHTML = payerOptions(l, (l && l.tenant_ids[0]) || ""); sel.onchange();
+        f.querySelector("[name=amount]").placeholder = l ? "Rent " + money(l.monthly_rent) : ""; };
+    };
+
+    v.innerHTML = `${canWork() ? `<div class="card" id="payForm"><h2>Record a payment</h2><form id="fp" class="row">
+        <label style="flex:2 1 240px">Lease<select name="lease_id" required>${active.map(l => `<option value="${l.id}">${esc(leaseLabel(l))}</option>`).join("")}</select></label>
+        ${fields()}
         <button class="btn" type="submit">Record</button></form><div class="fmsg"></div></div>` : ""}
       <div class="card"><h2>${me.role === "tenant" ? "Your payments" : "Payments"}</h2>${table([
-        {h:"Date", f:r => day(r.date_received)}, {h:"Unit", f:r => esc(leaseLabel[r.lease_id] || "—")},
-        {h:"Method", f:r => esc(r.method)}, {h:"Amount", num:1, f:r => `<b>${money(r.amount)}</b>`},
-        ...(isCoAdmin() ? [{h:"", f:r => `<button class="btn sm ghost" data-del="${r.id}">Delete</button>`}] : []),
+        {h:"Received", f:r => day(r.date_received)},
+        {h:"Unit", f:r => esc(unitRef[(leaseById[r.lease_id] || {}).rental_unit_id] || "—")},
+        {h:"For", f:r => r.for_month ? esc(monthName(r.for_month)) : `<span class="muted">—</span>`},
+        {h:"Paid by", f:payer},
+        {h:"Method", f:r => `${esc(METHOD[r.method] || r.method)}${r.method_detail ? `<div class="muted" style="font-size:12px">${esc(r.method_detail)}</div>` : ""}`},
+        {h:"Paid", num:1, f:r => { const l = leaseById[r.lease_id];
+          return `<b>${money(r.amount)}</b>${Number(r.late_fee) ? `<div class="muted" style="font-size:12px">+ ${money(r.late_fee)} late fee</div>` : ""}${l ? `<div class="muted" style="font-size:12px">of ${money(l.monthly_rent)} rent</div>` : ""}`; }},
+        {h:"Month status", f:r => { const l = leaseById[r.lease_id]; if (!r.for_month || !l) return `<span class="muted">—</span>`;
+          const got = monthPaid[r.lease_id + r.for_month] || 0, left = Number(l.monthly_rent) - got;
+          return left > 0.004 ? `<span class="badge warn">${money(left)} left</span>` : `<span class="badge ok">Covered</span>`; }},
+        {h:"Note", f:r => r.notes ? `<span class="muted" style="font-size:13px">${esc(r.notes)}</span>` : ""},
+        ...(canWork() ? [{h:"", f:r => `<div style="display:flex;gap:6px;justify-content:flex-end"><button class="btn sm ghost" data-edit="${r.id}">Edit</button>${isCoAdmin() ? `<button class="btn sm ghost" data-del="${r.id}">Delete</button>` : ""}</div>`}] : []),
       ], receipts, "No payments recorded.")}</div>`;
-    bindForm("fp", b => api("POST","/rent-receipts",{...b, amount:+b.amount}));
+
+    const fp = document.getElementById("fp");
+    if (fp) { wire(fp); bindForm("fp", (_, f) => api("POST", "/rent-receipts", body(f, true))); }
     v.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => { if (confirm("Delete this payment? An admin can restore it later.")) { await api("DELETE", `/rent-receipts/${b.dataset.del}`); reload(); } });
+    v.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => {
+      const r = receipts.find(x => x.id === b.dataset.edit), l = leaseById[r.lease_id];
+      const holder = document.getElementById("payForm");
+      holder.innerHTML = `<h2>Edit payment · ${esc(l ? leaseLabel(l) : "")}</h2><form id="fe" class="row">${fields(r)}
+        <button class="btn" type="submit">Save</button><button class="btn ghost" type="button" id="feCancel">Cancel</button></form><div class="fmsg"></div>`;
+      const fe = document.getElementById("fe"); wire(fe);
+      bindForm("fe", (_, f) => api("PATCH", `/rent-receipts/${r.id}`, body(f, false)));
+      document.getElementById("feCancel").onclick = () => reload();
+      holder.scrollIntoView({behavior: "smooth", block: "start"});
+    });
   },
 
   async maint(v){

@@ -18,7 +18,7 @@ Everything lives in this one repo (no submodules):
 |---|---|
 | `Dockerfile`, `docker-compose.yml`, `data/finished-skills/` | EMMA agent and skill definitions (`house-crud`, `tenant-crud`, `rent-crud`, `maintenance-crud`, `pit-crew-crud`) |
 | `api/` | FastAPI backend — routers, models, auth, role scoping, database access |
-| `db/` | PostgreSQL schema, migrations 002–010, RLS verification scripts |
+| `db/` | PostgreSQL schema, migrations 002–011, RLS verification scripts |
 | `demo/` | Public demo stack: its own Postgres + API (127.0.0.1:8100) with seeded demo data |
 | `web/` | The website (one static `index.html`), hosted on Vercel at estate-multitenant-management-architecture.vercel.app. `/api/*` is forwarded to the API (`vercel.json`). Deploy: `cd web; vercel deploy --prod` |
 
