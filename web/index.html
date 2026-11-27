@@ -220,7 +220,8 @@ footer{color:var(--faint);font-size:12.5px;text-align:center;padding:28px 16px;b
 .deliv{font-size:11.5px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-family:var(--mono)}
 .deliv .r{color:var(--ok)} .deliv .u{color:var(--warn)}
 .head-row{display:flex;align-items:center;gap:10px;margin-bottom:14px} .head-row h2{margin:0;flex:1}
-.card.jump{cursor:pointer;transition:border-color .15s,transform .15s}
+.card.jump,.stat.jump{cursor:pointer;transition:border-color .15s,transform .15s}
+.stat.jump:hover{border-color:color-mix(in srgb,var(--accent) 45%,transparent);transform:translateY(-1px)}
 .card.jump:hover{border-color:color-mix(in srgb,var(--accent) 45%,transparent);transform:translateY(-1px)}
 .card.jump .go{font-size:12.5px;color:var(--muted);font-family:var(--mono)} .card.jump:hover .go{color:var(--accent2)}
 /* ---------- Ask EMMA chat ---------- */
@@ -436,7 +437,7 @@ function renderAuth(mode = "in"){
 const TABS = {
   tenant: [["home","My home"],["payments","Payments"],["maint","Maintenance"],["checkins","Safety check-ins"]],
   company_admin: [["dash","Dashboard"],["units","Units"],["tenants","Tenants"],["leases","Leases"],["payments","Payments"],["maint","Maintenance"],["contractors","Contractors"],["checkins","Check-ins"],["accounts","Accounts"]],
-  super_admin: [["companies","Companies"],["accounts","All accounts"],["units","All units"],["leases","All leases"],["maint","All maintenance"]],
+  super_admin: [["overview","Overview"],["companies","Companies"],["accounts","All accounts"],["units","All units"],["leases","All leases"],["maint","All maintenance"]],
   contractor: [["jobs","My jobs"]],
 };
 TABS.staff = TABS.company_admin.filter(([k]) => k !== "accounts");
@@ -459,6 +460,7 @@ async function render(){
 async function showView(){
   const v = document.getElementById("view"); v.innerHTML = `<p class="muted">Loading…</p>`;
   try { await VIEWS[tab](v); } catch (e) { v.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+  v.querySelectorAll("[data-jump]").forEach(c => c.onclick = e => { if (e.target.closest("button,select,input,a")) return; tab = c.dataset.jump; render(); window.scrollTo({top: 0}); });
 }
 const reload = () => showView();
 
@@ -488,7 +490,7 @@ const companyMap = async () => me.role === "super_admin" ? Object.fromEntries((a
 /* ---------------- views ---------------- */
 const VIEWS = {
   async home(v){
-    const {leases, units} = await getMany({leases:"/leases", units:"/rental-units"});
+    const {leases, units, reqs} = await getMany({leases:"/leases", units:"/rental-units", reqs:"/maintenance-requests"});
     if (!leases.length) { v.innerHTML = `<div class="card"><h2>No lease yet</h2><p class="muted">Your property manager hasn't linked a lease to your account.</p></div>`; return; }
     const unitById = Object.fromEntries(units.map(u => [u.id, u]));
     const parts = await Promise.all(leases.map(async l => ({l, ar: await get(`/leases/${l.id}/arrears`)})));
@@ -497,18 +499,54 @@ const VIEWS = {
       return `<h1>${esc(u ? u.address_line1 || u.unit_reference : "Your home")}</h1><p class="sub">${u ? esc([u.unit_reference, u.city].filter(Boolean).join(" · ")) : ""} · lease since ${day(l.start_date)} ${statusBadge(l.status)}</p>
       <div class="stats">
         <div class="stat"><b>${money(l.monthly_rent)}</b><span>Monthly rent, due day ${l.due_day_of_month}</span></div>
-        <div class="stat"><b style="color:${ar.total_owed>0?"var(--bad)":"var(--ok)"}">${money(ar.total_owed)}</b><span>Currently owed</span></div>
-        <div class="stat"><b>${money(ar.total_paid)}</b><span>Paid since move-in</span></div>
+        <div class="stat jump" data-jump="payments" title="Open Payments"><b style="color:${ar.total_owed>0?"var(--bad)":"var(--ok)"}">${money(ar.total_owed)}</b><span>Currently owed</span></div>
+        <div class="stat jump" data-jump="payments" title="Open Payments"><b>${money(ar.total_paid)}</b><span>Paid since move-in</span></div>
         <div class="stat"><b>${money(ar.credit_balance)}</b><span>Credit</span></div>
       </div>
-      <div class="card"><h2>Month by month</h2>${table([
+      <div class="card jump" data-jump="payments" title="Open Payments"><div class="head-row"><h2>Month by month</h2><span class="go">Payments →</span></div>${table([
         {h:"Month", f:r => new Date(r.year, r.month-1).toLocaleString(undefined,{month:"long",year:"numeric"})},
         {h:"Due", f:r => day(r.due_date)},
         {h:"Rent", num:1, f:r => money(r.expected_rent)},
         {h:"Paid", num:1, f:r => money(r.paid)},
         {h:"Outstanding", num:1, f:r => r.outstanding > 0 ? `<b style="color:var(--bad)">${money(r.outstanding)}</b>` : money(0)},
       ], ar.monthly_breakdown.slice().reverse())}</div>`;
-    }).join("");
+    }).join("") + (() => {
+      const open = reqs.filter(q => !["Completed","Verified","Cancelled"].includes(q.status));
+      return `<div class="card jump" data-jump="maint" title="Open Maintenance"><div class="head-row"><h2>Your repairs</h2><span class="go">Maintenance →</span></div>${table([
+        {h:"Problem", f:q => esc(q.description)}, {h:"Priority", f:q => esc(q.priority)},
+        {h:"Scheduled", f:q => q.scheduled_date ? day(q.scheduled_date) : `<span class="muted">—</span>`}, {h:"Status", f:q => statusBadge(q.status)},
+      ], open, "No open repairs. Report one on the Maintenance tab.")}</div>`;
+    })();
+  },
+
+  async overview(v){
+    const {cos, users, units, leases, reqs} = await getMany({cos:"/companies", users:"/users", units:"/rental-units", leases:"/leases", reqs:"/maintenance-requests"});
+    const DONE = ["Completed","Verified","Cancelled"];
+    const open = reqs.filter(q => !DONE.includes(q.status));
+    const active = leases.filter(l => l.status === "active");
+    const per = cos.map(c => ({c, units: units.filter(u => u.company_id === c.id).length,
+      leases: active.filter(l => l.company_id === c.id).length,
+      rent: active.filter(l => l.company_id === c.id).reduce((a, l) => a + Number(l.monthly_rent), 0),
+      open: open.filter(q => q.company_id === c.id).length,
+      users: users.filter(u => u.company_id === c.id).length}));
+    const byStatus = Object.entries(open.reduce((a, q) => (a[q.status] = (a[q.status] || 0) + 1, a), {}));
+    v.innerHTML = `<h1>Platform overview</h1><p class="sub">Every company on EMMA at a glance.</p>
+    <div class="stats">
+      <div class="stat jump" data-jump="companies"><b>${cos.length}</b><span>Companies</span></div>
+      <div class="stat jump" data-jump="accounts"><b>${users.length}</b><span>Accounts</span></div>
+      <div class="stat jump" data-jump="units"><b>${units.length}</b><span>Units</span></div>
+      <div class="stat jump" data-jump="leases"><b>${active.length}</b><span>Active leases</span></div>
+      <div class="stat jump" data-jump="leases"><b>${money(active.reduce((a, l) => a + Number(l.monthly_rent), 0))}</b><span>Rent roll / month</span></div>
+      <div class="stat jump" data-jump="maint"><b>${open.length}</b><span>Open repairs</span></div>
+    </div>
+    <div class="card jump" data-jump="companies"><div class="head-row"><h2>Companies</h2><span class="go">Companies →</span></div>${table([
+      {h:"Company", f:r => `<b>${esc(r.c.name)}</b>`}, {h:"Status", f:r => statusBadge(r.c.status)},
+      {h:"Units", num:1, f:r => r.units}, {h:"Active leases", num:1, f:r => r.leases},
+      {h:"Rent / month", num:1, f:r => money(r.rent)}, {h:"Open repairs", num:1, f:r => r.open}, {h:"Accounts", num:1, f:r => r.users},
+    ], per, "No companies yet.")}</div>
+    <div class="card jump" data-jump="maint"><div class="head-row"><h2>Open repairs by status</h2><span class="go">All maintenance →</span></div>${table([
+      {h:"Status", f:r => statusBadge(r[0])}, {h:"Requests", num:1, f:r => r[1]},
+    ], byStatus, "No open repairs anywhere.")}</div>`;
   },
 
   async dash(v){
@@ -539,7 +577,6 @@ const VIEWS = {
         {h:"Status", f:r => statusBadge(r[0])}, {h:"Requests", num:1, f:r => r[1]},
       ], Object.entries(s.maintenance_by_status), "No requests.")}</div>
     </div>`;
-    v.querySelectorAll("[data-jump]").forEach(c => c.onclick = () => { tab = c.dataset.jump; render(); window.scrollTo({top: 0}); });
   },
 
   async units(v){
