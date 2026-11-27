@@ -45,6 +45,13 @@ def create_refresh_token(user_id: str, company_id: Optional[str], role: str) -> 
     )
 
 
+def issued_before_password_change(payload: dict, user) -> bool:
+    """True if this token predates the user's last password change, i.e.
+    it belongs to a session that should have ended (migration_014)."""
+    changed = getattr(user, "password_changed_at", None)
+    return bool(changed) and int(payload.get("iat", 0)) < int(changed.timestamp())
+
+
 def decode_token(token: str) -> dict:
     """Raises jose.JWTError on invalid signature or expiry — callers catch it."""
     return jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])

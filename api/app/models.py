@@ -34,6 +34,7 @@ class User(Base):
     username = Column(String(50), nullable=False)  # unique on lower(username), migration 009
     email = Column(String(255), nullable=True, unique=True)
     password_hash = Column(String(255), nullable=False)
+    password_changed_at = Column(DateTime(timezone=True))  # migration_014
     telegram_link_id = Column(String(255), unique=True, nullable=True)
     is_deleted = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

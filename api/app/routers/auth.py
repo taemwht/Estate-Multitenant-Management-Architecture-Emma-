@@ -7,7 +7,7 @@ from ..database import get_db, super_admin_session
 from ..deps import get_current_user
 from ..models import User
 from ..schemas import LoginRequest, RefreshRequest, TokenResponse, AccessTokenResponse, UserOut
-from ..security import verify_password, create_access_token, create_refresh_token, decode_token
+from ..security import verify_password, create_access_token, create_refresh_token, decode_token, issued_before_password_change
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -71,7 +71,7 @@ def refresh(body: RefreshRequest, db: Session = Depends(get_db)):
             .filter(User.id == user_id, User.is_deleted.is_(False))
             .first()
         )
-    if not user:
+    if not user or issued_before_password_change(payload, user):
         raise unauthorized
 
     company_id = str(user.company_id) if user.company_id else None

@@ -69,6 +69,13 @@ header .wrap{display:flex;align-items:center;gap:12px;min-height:64px;flex-wrap:
 /* badges */
 .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;background:var(--soft);color:var(--accent);white-space:nowrap;border:1px solid color-mix(in srgb,currentColor 22%,transparent)}
 .badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.9}
+.role-super_admin{color:#f5b942;background:rgba(245,185,66,.12)}
+.role-company_admin{color:#a78bfa;background:rgba(167,139,250,.13)}
+.role-staff{color:#38bdf8;background:rgba(56,189,248,.12)}
+.role-tenant{color:#34d399;background:rgba(52,211,153,.12)}
+.role-contractor{color:#fb923c;background:rgba(251,146,60,.12)}
+:root[data-theme="light"] .role-super_admin{color:#a16207} :root[data-theme="light"] .role-company_admin{color:#6d28d9}
+:root[data-theme="light"] .role-staff{color:#0369a1} :root[data-theme="light"] .role-tenant{color:#047857} :root[data-theme="light"] .role-contractor{color:#c2410c}
 .badge.ok{background:var(--ok-soft);color:var(--ok)} .badge.warn{background:var(--warn-soft);color:var(--warn)} .badge.bad{background:var(--bad-soft);color:var(--bad)}
 
 /* tabs */
@@ -288,6 +295,7 @@ footer{color:var(--faint);font-size:12.5px;text-align:center;padding:28px 16px;b
 // API calls go to /api on this same site; Vercel forwards them to the EMMA API (vercel.json).
 // Same-origin means no CORS and no "local network access" prompt in the browser.
 const API = new URLSearchParams(location.search).get("api") || "/api";
+const roleBadge = role => `<span class="badge role-${esc(role)}">${esc(ROLE_LABEL[role] || role)}</span>`;
 const ROLE_LABEL = {super_admin:"Super admin", company_admin:"Company admin", staff:"Staff", tenant:"Tenant", contractor:"Contractor"};
 const $app = document.getElementById("app"), $who = document.getElementById("who");
 const store = {
@@ -504,7 +512,7 @@ async function render(){
   if (!store.get("access")) return signedOut();
   try { me = await get("/auth/me"); company = me.company_id ? await get("/companies/me").catch(() => null) : null; }
   catch (e) { if (e.status !== 401) { $app.innerHTML = `<div class="card" style="margin-top:24px"><h2>API unreachable</h2><p class="muted">${esc(e.message)}</p><button class="btn" onclick="render()">Retry</button></div>`; return; } return logout(); }
-  $who.innerHTML = `<span class="badge">${esc(ROLE_LABEL[me.role] || me.role)}</span><span>${esc(me.username)}${company ? " · " + esc(company.name) : ""}</span><button class="bell" id="bell" type="button" aria-label="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 20a1.9 1.9 0 0 0 3.4 0"/></svg><b id="bellN" hidden></b></button><button class="btn ghost sm" id="out">Sign out</button>`;
+  $who.innerHTML = `${roleBadge(me.role)}<span>${esc(me.username)}${company ? " · " + esc(company.name) : ""}</span><button class="bell" id="bell" type="button" aria-label="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 20a1.9 1.9 0 0 0 3.4 0"/></svg><b id="bellN" hidden></b></button><button class="btn ghost sm" id="out">Sign out</button>`;
   document.getElementById("out").onclick = logout;
   document.getElementById("bell").onclick = notesToggle;
   notesCount();
@@ -865,7 +873,7 @@ const VIEWS = {
 
   async accounts(v){
     const [users, cos] = [await get("/users"), await companyMap()];
-    v.innerHTML = `${isCoAdmin() ? `<div class="card"><h2>Add a staff member or admin</h2><form id="fa" class="row">
+    v.innerHTML = `<div id="uEdit"></div>${isCoAdmin() ? `<div class="card"><h2>Add a staff member or admin</h2><form id="fa" class="row">
         <label>Username<input name="username" required autocapitalize="none" spellcheck="false" minlength="3" title="3-50 letters, numbers, dots, dashes or underscores"></label>
         <label>Temporary password<input name="password" minlength="8" required></label>
         <label>Role<select name="role"><option value="staff">Staff</option><option value="company_admin">Company admin</option></select></label>
@@ -875,10 +883,31 @@ const VIEWS = {
       ...(me.role==="super_admin" ? [{h:"Company", f:r => r.company_id ? esc(cos[r.company_id]) : `<span class="muted">Platform</span>`}] : []),
       {h:"Username", f:r => `<b>${esc(r.username)}</b>` + (r.id === me.id ? ` <span class="muted">(you)</span>` : "")},
       {h:"Email", f:r => r.email ? esc(r.email) : `<span class="muted">—</span>`},
-      {h:"Role", f:r => `<span class="badge">${esc(ROLE_LABEL[r.role] || r.role)}</span>`},
+      {h:"Role", f:r => roleBadge(r.role)},
+      ...(me.role === "super_admin" ? [{h:"", f:r => `<button class="btn sm ghost" data-uedit="${r.id}">Edit</button>`}] : []),
       ...(isCoAdmin() ? [{h:"", f:r => r.id === me.id ? "" : `<button class="btn sm ghost" data-rm="${r.id}" data-email="${esc(r.username)}">Remove</button>`}] : []),
     ], users)}</div>`;
     bindForm("fa", b => api("POST","/users", b));
+    // super admin: change anyone's username / password / email
+    v.querySelectorAll("[data-uedit]").forEach(b => b.onclick = () => {
+      const u = users.find(x => x.id === b.dataset.uedit), self = u.id === me.id, box = document.getElementById("uEdit");
+      box.innerHTML = `<div class="card"><h2>Edit ${esc(u.username)} ${roleBadge(u.role)}</h2><form id="fue" class="row">
+        <label>Username<input name="username" required autocapitalize="none" spellcheck="false" minlength="3" maxlength="50" value="${esc(u.username)}" title="3-50 letters, numbers, dots, dashes or underscores"></label>
+        <label>New password <span class="muted">(blank = keep)</span><input name="password" type="text" minlength="8" autocomplete="new-password"></label>
+        <label>Email <span class="muted">(optional)</span><input name="email" type="email" value="${esc(u.email || "")}"></label>
+        <button class="btn" type="submit">Save</button><button class="btn ghost" type="button" id="fueCancel">Cancel</button></form><div class="fmsg"></div>
+        <p class="muted" style="font-size:13px;margin:8px 0 0">Usernames are unique across the whole platform. A new password signs ${self ? "you" : "them"} out everywhere and unlinks ${self ? "your" : "their"} Telegram.${self ? " You'll need to sign in again." : ""}</p></div>`;
+      document.getElementById("fueCancel").onclick = () => { box.innerHTML = ""; };
+      const f = document.getElementById("fue");
+      f.onsubmit = async e => { e.preventDefault(); const x = Object.fromEntries(new FormData(f)), body = {};
+        if (x.username.trim().toLowerCase() !== u.username) body.username = x.username.trim();
+        if (x.password) body.password = x.password;
+        if ((x.email.trim() || null) !== (u.email || null)) body.email = x.email.trim() || null;
+        if (!Object.keys(body).length) return flash(f.parentElement.querySelector(".fmsg"), "Nothing changed.");
+        try { await api("PATCH", `/users/${u.id}`, body); if (self && body.password) return logout(); reload(); }
+        catch (err) { flash(f.parentElement.querySelector(".fmsg"), err.message); } };
+      box.scrollIntoView({behavior: "smooth", block: "start"});
+    });
     v.querySelectorAll("[data-rm]").forEach(b => b.onclick = async () => { if (confirm(`Remove the login for ${b.dataset.email}? Their records stay; they just can't sign in.`)) { try { await api("DELETE", `/users/${b.dataset.rm}`); } catch (e) { alert(e.message); } reload(); } });
   },
 

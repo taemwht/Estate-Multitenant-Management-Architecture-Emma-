@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from .database import get_db, set_rls_context
 from .models import User
-from .security import decode_token
+from .security import decode_token, issued_before_password_change
 
 bearer_scheme = HTTPBearer()
 
@@ -48,7 +48,7 @@ def get_current_user(
         .filter(User.id == user_id, User.is_deleted.is_(False))
         .first()
     )
-    if not user:
+    if not user or issued_before_password_change(payload, user):
         raise unauthorized
 
     return user

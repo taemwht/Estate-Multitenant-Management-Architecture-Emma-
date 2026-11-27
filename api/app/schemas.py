@@ -72,6 +72,13 @@ class LoginCreate(BaseModel):
     email: Optional[EmailStr] = None
 
 
+class UserAdminUpdate(BaseModel):
+    """Super admin changing any login. Leave a field out to keep it."""
+    username: Optional[str] = None
+    password: Optional[str] = None
+    email: Optional[EmailStr] = None
+
+
 class UserCreate(BaseModel):
     """Company admin adding a staff member or another admin."""
     username: str
