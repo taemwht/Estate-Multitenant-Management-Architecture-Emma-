@@ -64,6 +64,15 @@ CHAT_TIMEZONE=America/Los_Angeles
 
 Adding another AI provider means one more function in `api/app/chat/provider.py`.
 
+### EMMA on Telegram
+
+One bot for everyone (`api/app/telegram/`). A person links their Telegram once from the website (Ask EMMA → Telegram → a one-time, 10-minute code); after that the bot sends their messages through the same `/chat`, as their own login. Unlinked accounts and group chats get nothing. Proposed changes arrive with Confirm / Cancel buttons that only that person can press. Links are stored in `telegram_links` (migration 010); unlink from the website or with `/unlink`.
+
+```
+TELEGRAM_BOT_TOKEN=...   # from @BotFather
+TELEGRAM_BOT_FOR=demo    # which API runs the bot: demo or real (only one can)
+```
+
 ## Secrets
 
 Every password lives in **one** git-ignored file: `.env` at the repo root. Copy `.env.example` to `.env` and fill it in. Never commit `.env`.

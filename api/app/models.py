@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, String, Boolean, DateTime, Date, Numeric, Integer, SmallInteger, ForeignKey, Text, func
+from sqlalchemy import BigInteger, Column, String, Boolean, DateTime, Date, Numeric, Integer, SmallInteger, ForeignKey, Text, func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 
@@ -286,4 +286,14 @@ class AuditLog(Base):
     entity_id = Column(UUID(as_uuid=True), nullable=True)
     before_state = Column(JSONB, nullable=True)
     after_state = Column(JSONB, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class TelegramLink(Base):
+    """migration_010: which Telegram account belongs to which EMMA login."""
+    __tablename__ = "telegram_links"
+
+    telegram_user_id = Column(BigInteger, primary_key=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, unique=True)
+    telegram_username = Column(String(64))
     created_at = Column(DateTime(timezone=True), server_default=func.now())

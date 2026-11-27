@@ -49,6 +49,7 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[ChatMessage] = Field(min_length=1, max_length=30)
+    channel: Literal["web", "telegram"] = "web"
 
 
 class ProposedAction(BaseModel):
@@ -150,7 +151,7 @@ ROLE_NOTES = {
 }
 
 
-def _system_prompt(me: dict) -> str:
+def _system_prompt(me: dict, channel: str = "web") -> str:
     return f"""You are EMMA, the assistant built into a property management platform.
 Today is {datetime.now(ZoneInfo(settings.chat_timezone)):%A %d %B %Y} ({settings.chat_timezone}).
 
@@ -167,7 +168,9 @@ How to work:
 - Look ids up with the list tools rather than asking the person for them. Refer to records by
   address, unit, name or date in your answers, not by id.
 - Be brief and friendly. Use short lists or small tables when they help. Money with 2 decimals.
-- You only help with this platform. For anything else, say so briefly."""
+- You only help with this platform. For anything else, say so briefly.""" + (
+        "\n- You're replying in Telegram on a phone: no tables. Use short lines and simple bullet lists."
+        if channel == "telegram" else "")
 
 
 # ---------------------------------------------------------------- routes
@@ -216,7 +219,7 @@ async def chat(
         tools = [{"name": s.tool.name, "description": s.tool.description, "parameters": s.parameters}
                  for s in allowed.values()]
         try:
-            reply = await run_chat(_system_prompt(me), [m.model_dump() for m in body.messages], tools, execute)
+            reply = await run_chat(_system_prompt(me, body.channel), [m.model_dump() for m in body.messages], tools, execute)
         except ChatError as e:
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
     return ChatResponse(reply=reply, actions=actions)

@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
 
+    # Which copy of the API this is ("real" or "demo"), and which one runs
+    # the Telegram bot. Only one process may poll a bot token at a time.
+    app_instance: str = "real"
+    telegram_bot_token: str = ""
+    telegram_bot_for: str = "demo"
+
     class Config:
         # All secrets live in Emma/.env (repo root). Run uvicorn from api/.
         # A local api/.env, if present, overrides it.

@@ -10,13 +10,18 @@ from .routers import (
     bulk_import, dashboard, users, companies, my_jobs,
 )
 from .chat.router import router as chat_router
+from .telegram import bot as telegram_bot
+from .telegram.links import router as telegram_router
 from .scheduler import start_scheduler, stop_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     start_scheduler()
+    bot = telegram_bot.start(app)
     yield
+    if bot:
+        bot.cancel()
     stop_scheduler()
 
 
@@ -32,6 +37,7 @@ if _origins:
     )
 
 app.include_router(chat_router)
+app.include_router(telegram_router)
 app.include_router(users.router)
 app.include_router(companies.router)
 app.include_router(auth.router)
