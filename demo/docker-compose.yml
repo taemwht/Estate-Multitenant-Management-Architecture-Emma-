@@ -27,6 +27,10 @@ services:
       DATABASE_URL: postgresql://app_platform:${DEMO_APP_DB_PASSWORD}@db:5432/property_platform
       JWT_SECRET_KEY: ${DEMO_JWT_SECRET}
       CORS_ORIGINS: ${DEMO_CORS_ORIGINS}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      CHAT_PROVIDER: ${CHAT_PROVIDER:-openai}
+      CHAT_MODEL: ${CHAT_MODEL:-gpt-6-luna}
+      CHAT_TIMEZONE: ${CHAT_TIMEZONE:-America/Los_Angeles}
     ports:
       - "127.0.0.1:8100:8000"
 volumes:

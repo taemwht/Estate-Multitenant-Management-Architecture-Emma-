@@ -45,6 +45,25 @@ EMMA's five CRUD skills call the FastAPI layer exclusively:
 
 Skills are mounted read-only into the EMMA container (`data/finished-skills/`) to prevent the agent from modifying its own skill files at runtime.
 
+## Ask EMMA (website chat)
+
+`api/app/chat/` adds a chat to the API that every signed-in role can use:
+
+- `POST /chat` — the person's conversation goes in; EMMA answers using tools that call this API's own endpoints **with the person's own token**, so role checks and row-level security decide what she can see. Each role is only offered the tools it can use.
+- `POST /chat/confirm` — EMMA never changes data herself. A write comes back as a signed, 10-minute proposal that only the same person can confirm with a click.
+- No shell, files or web access: the only tools are the property endpoints. Per-person rate limits keep AI costs bounded.
+
+Settings in `.env` (change any time, then `docker compose up -d`):
+
+```
+OPENAI_API_KEY=...
+CHAT_PROVIDER=openai
+CHAT_MODEL=gpt-6-luna
+CHAT_TIMEZONE=America/Los_Angeles
+```
+
+Adding another AI provider means one more function in `api/app/chat/provider.py`.
+
 ## Secrets
 
 Every password lives in **one** git-ignored file: `.env` at the repo root. Copy `.env.example` to `.env` and fill it in. Never commit `.env`.

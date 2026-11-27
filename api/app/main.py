@@ -9,6 +9,7 @@ from .routers import (
     contractors, maintenance_requests, contractor_payments, annual_checkins,
     bulk_import, dashboard, users, companies, my_jobs,
 )
+from .chat.router import router as chat_router
 from .scheduler import start_scheduler, stop_scheduler
 
 
@@ -30,6 +31,7 @@ if _origins:
         allow_headers=["Authorization", "Content-Type", "X-Actor-Type"],
     )
 
+app.include_router(chat_router)
 app.include_router(users.router)
 app.include_router(companies.router)
 app.include_router(auth.router)

@@ -19,6 +19,19 @@ class Settings(BaseSettings):
     # "https://my-site.vercel.app". Empty = no cross-origin browser access.
     cors_origins: str = ""
 
+    # EMMA's chat (app/chat). Change the model or provider here / in .env.
+    chat_provider: str = "openai"
+    chat_model: str = "gpt-6-luna"
+    chat_timezone: str = "America/Los_Angeles"  # what "today" means to EMMA
+    chat_reasoning_effort: str = "low"     # "" to leave it to the model
+    chat_max_steps: int = 8                # tool rounds per message
+    chat_max_output_tokens: int = 4000
+    chat_timeout_seconds: int = 60
+    chat_limit_per_10min: int = 20         # messages per person
+    chat_limit_per_day: int = 200
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+
     class Config:
         # All secrets live in Emma/.env (repo root). Run uvicorn from api/.
         # A local api/.env, if present, overrides it.
