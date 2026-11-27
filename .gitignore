@@ -1,0 +1,32 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Ignore everything in data/ EXCEPT finished-skills (the actual skill source)
+data/*
+!data/finished-skills/
+!data/finished-skills/**
+
+# Old archive folder at hermes root
+data-fresh-OLD-ARCHIVE/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

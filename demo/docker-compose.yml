@@ -1,0 +1,33 @@
+# Public demo stack: its own Postgres + API. Never points at the real
+# property_platform database. Secrets come from Emma/.env (git-ignored):
+#   cd demo; docker compose --env-file ../.env up -d
+name: property-demo
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${DEMO_SUPERUSER_PASSWORD}
+      APP_DB_PASSWORD: ${DEMO_APP_DB_PASSWORD}
+    volumes:
+      - demo_pgdata:/var/lib/postgresql
+      - ./init-db.sh:/docker-entrypoint-initdb.d/00-init.sh:ro
+      - ../db:/db-foundation:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "property_platform"]
+      interval: 5s
+      retries: 20
+  api:
+    build: ../api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://app_platform:${DEMO_APP_DB_PASSWORD}@db:5432/property_platform
+      JWT_SECRET_KEY: ${DEMO_JWT_SECRET}
+      CORS_ORIGINS: ${DEMO_CORS_ORIGINS}
+    ports:
+      - "127.0.0.1:8100:8000"
+volumes:
+  demo_pgdata:

@@ -1,0 +1,29 @@
+services:
+  emma:
+    container_name: Emma
+    build: .
+    restart: unless-stopped
+    command: gateway run
+    volumes:
+      - ./data:/opt/data
+      - ./data/finished-skills:/opt/finished-skills:ro
+    ports:
+      - "6789:6789"
+      - "8642:8642"
+    stdin_open: true
+    tty: true
+    environment:
+      API_BASE_URL: http://host.docker.internal:8000
+      API_EMAIL: admin@test.com
+      API_PASSWORD: ${EMMA_API_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          memory: 6G
+          cpus: "3.0"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - hermes_net
+networks:
+  hermes_net:
