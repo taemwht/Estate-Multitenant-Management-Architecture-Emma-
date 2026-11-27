@@ -180,43 +180,35 @@ def change_user(
 def remove_user(
     user_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
+    current_user: User = Depends(require_roles("super_admin", "company_admin")),
     actor_type: str = Depends(get_actor_type),
 ):
-    """Company admin removes a login from their company. The person's records
-    (tenant, contractor) stay; only the ability to sign in goes away.
-    Their existing tokens stop working on the next request."""
+    """Remove a login. The person's records (tenant, contractor) stay; only
+    the ability to sign in goes away, and their tokens stop working at once.
+      - super admin: anyone except themselves (including other admins)
+      - company admin: only people below them: staff, tenants and the
+        logins of contractors their company created. Not other admins.
+    Same rules as editing (see _editable)."""
     if user_id == current_user.id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="You can't remove your own account.")
-    company_id = current_user.company_id
-    user = db.query(User).filter(User.id == user_id, User.is_deleted.is_(False)).first()
-    contractor = None
-    if user is None:
-        # A contractor login has no company, so RLS hides it from a company
-        # session. The admin may remove it if the contractor is one their
-        # company created.
-        with super_admin_session(db, company_id=company_id):
-            contractor = (
-                db.query(Contractor)
-                .filter(Contractor.user_id == user_id,
-                        Contractor.created_by_company_id == company_id)
-                .first()
-            )
-            if contractor is not None:
-                user = db.query(User).filter(User.id == user_id, User.is_deleted.is_(False)).first()
-    if user is None or (user.company_id != company_id and contractor is None):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user = _editable(db, user_id, current_user)
 
-    with super_admin_session(db, company_id=company_id):
+    def apply():
         user.is_deleted = True
-        if contractor is not None:
-            contractor.user_id = None
+        db.query(Contractor).filter(Contractor.user_id == user.id).update({Contractor.user_id: None})
         db.query(Tenant).filter(Tenant.user_id == user.id).update({Tenant.user_id: None})
+        db.query(TelegramLink).filter(TelegramLink.user_id == user.id).delete()
         db.flush()
+
+    if current_user.role == "super_admin":
+        apply()
+    else:
+        with super_admin_session(db, company_id=current_user.company_id):
+            apply()
     write_audit_log(
-        db, company_id=company_id, actor_id=current_user.id, actor_type=actor_type,
-        action="soft_delete", entity_type="user", entity_id=user_id,
+        db, company_id=user.company_id or current_user.company_id, actor_id=current_user.id,
+        actor_type=actor_type, action="soft_delete", entity_type="user", entity_id=user_id,
         before_state={"username": user.username, "role": user.role},
     )
     db.commit()

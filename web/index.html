@@ -980,7 +980,8 @@ const VIEWS = {
       {h:"Role", f:r => roleBadge(r.role)},
       // super admin edits anyone; a company admin edits the people below them
       ...(me.role === "super_admin" || isCoAdmin() ? [{h:"", f:r => me.role === "super_admin" || (r.id !== me.id && ["staff","tenant","contractor"].includes(r.role)) ? `<button class="btn sm ghost" data-uedit="${r.id}">Edit</button>` : ""}] : []),
-      ...(isCoAdmin() ? [{h:"", f:r => r.id === me.id ? "" : `<button class="btn sm ghost" data-rm="${r.id}" data-email="${esc(r.username)}">Remove</button>`}] : []),
+      // super admin removes anyone but themselves; a company admin only the people below them
+      ...(me.role === "super_admin" || isCoAdmin() ? [{h:"", f:r => r.id !== me.id && (me.role === "super_admin" || ["staff","tenant","contractor"].includes(r.role)) ? `<button class="btn sm ghost" data-rm="${r.id}" data-email="${esc(r.username)}">Remove</button>` : ""}] : []),
     ], users)}</div>`;
     bindForm("fa", b => api("POST","/users", b));
     // super admin: change anyone's username / password / email
