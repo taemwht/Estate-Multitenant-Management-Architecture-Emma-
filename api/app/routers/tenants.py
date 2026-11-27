@@ -9,8 +9,10 @@ from ..audit import write_audit_log
 from ..database import get_db, super_admin_session
 from ..security import hash_password
 from ..deps import require_roles, get_actor_type
-from ..models import Tenant, User
-from ..schemas import TenantCreate, TenantUpdate, TenantOut, TenantLoginCreate
+from datetime import date, datetime, timezone
+
+from ..models import Lease, LeaseTenant, TelegramLink, Tenant, User
+from ..schemas import TenantCreate, TenantEvict, TenantUpdate, TenantOut, TenantLoginCreate
 from ..scoping import STAFF_AND_TENANT_ROLES, tenant_scope_for, ADMIN_ROLES
 
 router = APIRouter(prefix="/tenants", tags=["tenants"])
@@ -203,6 +205,9 @@ def create_tenant_login(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     if tenant.user_id is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This tenant already has a login")
+    if tenant.status == "evicted":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="This tenant was evicted. Reactivate them first if they need a login again.")
 
     email = body.email or tenant.email
     ensure_free(db, username, email, current_user.company_id)
@@ -226,6 +231,85 @@ def create_tenant_login(
         entity_id=tenant.id, after_state={"username": username},
     )
 
+    result = TenantOut.model_validate(tenant)
+    db.commit()
+    return result
+
+
+@router.post("/{tenant_id}/evict", response_model=TenantOut)
+def evict_tenant(
+    tenant_id: uuid.UUID,
+    body: TenantEvict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
+    actor_type: str = Depends(get_actor_type),
+):
+    """Company admin evicts a tenant:
+      - the tenant is marked evicted (moves to the Inactive tab),
+      - their portal login is switched off at once (sessions end, Telegram unlinked),
+      - optionally (default) their active lease(s) end today with reason "eviction".
+    Nothing is deleted; payments and history stay."""
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id, Tenant.is_deleted.is_(False)).first()
+    if not tenant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
+    if tenant.status == "evicted":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This tenant is already evicted.")
+    now = datetime.now(timezone.utc)
+    before = {"status": tenant.status, "user_id": str(tenant.user_id) if tenant.user_id else None}
+    tenant.status, tenant.status_changed_at = "evicted", now
+    tenant.status_reason = (body.reason or "").strip()[:500] or None
+
+    login_removed = None
+    if tenant.user_id:
+        user = db.query(User).filter(User.id == tenant.user_id).first()
+        if user is not None:
+            user.is_deleted = True          # every request with their token now gets 401
+            db.query(TelegramLink).filter(TelegramLink.user_id == user.id).delete()
+            login_removed = user.username
+        tenant.user_id = None
+
+    ended = []
+    if body.end_lease:
+        leases = (db.query(Lease).join(LeaseTenant, LeaseTenant.lease_id == Lease.id)
+                  .filter(LeaseTenant.tenant_id == tenant.id, Lease.status == "active").all())
+        today = date.today()
+        for lease in leases:
+            lease.status, lease.end_reason = "ended", "eviction"
+            if lease.end_date is None or lease.end_date > today:
+                lease.end_date = today
+            ended.append(str(lease.id))
+    db.flush()
+    write_audit_log(
+        db, company_id=current_user.company_id, actor_id=current_user.id, actor_type=actor_type,
+        action="evict", entity_type="tenant", entity_id=tenant.id, before_state=before,
+        after_state={"status": "evicted", "reason": tenant.status_reason,
+                     "login_removed": login_removed, "leases_ended": ended},
+    )
+    result = TenantOut.model_validate(tenant)
+    db.commit()
+    return result
+
+
+@router.post("/{tenant_id}/reactivate", response_model=TenantOut)
+def reactivate_tenant(
+    tenant_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
+    actor_type: str = Depends(get_actor_type),
+):
+    """Undo an eviction / inactive status. The old login stays off; create
+    a new one from the Tenants page if they need the portal again."""
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id, Tenant.is_deleted.is_(False)).first()
+    if not tenant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
+    if tenant.status == "active":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This tenant is already active.")
+    before = tenant.status
+    tenant.status, tenant.status_changed_at, tenant.status_reason = "active", datetime.now(timezone.utc), None
+    db.flush()
+    write_audit_log(db, company_id=current_user.company_id, actor_id=current_user.id, actor_type=actor_type,
+                    action="reactivate", entity_type="tenant", entity_id=tenant.id,
+                    before_state={"status": before}, after_state={"status": "active"})
     result = TenantOut.model_validate(tenant)
     db.commit()
     return result

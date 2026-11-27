@@ -227,6 +227,12 @@ footer{color:var(--faint);font-size:12.5px;text-align:center;padding:28px 16px;b
 .note-i small{display:block;font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:4px}
 .deliv{font-size:11.5px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-family:var(--mono)}
 .deliv .r{color:var(--ok)} .deliv .u{color:var(--warn)}
+.subtabs{display:inline-flex;gap:4px;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--field)}
+.subtabs button{border:0;background:none;color:var(--muted);padding:5px 12px;border-radius:7px;cursor:pointer;font:inherit;font-size:13px;font-weight:500}
+.subtabs button.on{background:var(--panel-hi);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line-hi)}
+.subtabs b{font-family:var(--mono);font-weight:500;color:var(--faint);margin-left:4px}
+.btn.danger{background:linear-gradient(135deg,#ff6b81,#f0506e);color:#fff}
+.fieldset{flex:1 1 100%;margin:6px 0 0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 .head-row{display:flex;align-items:center;gap:10px;margin-bottom:14px} .head-row h2{margin:0;flex:1}
 .card.jump,.stat.jump{cursor:pointer;transition:border-color .15s,transform .15s}
 .stat.jump:hover{border-color:color-mix(in srgb,var(--accent) 45%,transparent);transform:translateY(-1px)}
@@ -302,7 +308,7 @@ const store = {
   get(k){ try{return sessionStorage.getItem(k)}catch{return null} },
   set(k,v){ try{v==null?sessionStorage.removeItem(k):sessionStorage.setItem(k,v)}catch{} },
 };
-let me = null, company = null, tab = null, cache = {};
+let me = null, company = null, tab = null, cache = {}, tenantsView = "active";
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const money = n => n == null ? "—" : "$" + Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -650,29 +656,94 @@ const VIEWS = {
   },
 
   async units(v){
-    const [units, cos] = [await get("/rental-units"), await companyMap()];
-    v.innerHTML = `${canWork() ? `<div class="card"><h2>Add a unit</h2><form id="fu" class="row">
-        <label>Reference<input name="unit_reference" required placeholder="SUN-301"></label>
-        <label>Street<input name="address_line1"></label><label>City<input name="city"></label>
-        <button class="btn" type="submit">Add unit</button></form><div class="fmsg"></div></div>` : ""}
+    const [units, cos, leases] = [await get("/rental-units"), await companyMap(), await get("/leases")];
+    const occupied = new Set(leases.filter(l => l.status === "active").map(l => l.rental_unit_id));
+    const TYPES = ["apartment","house","duplex","townhouse","condo","adu","studio","room","other"];
+    const LAUNDRY = [["in_unit","In unit"],["shared","Shared on site"],["hookups","Hookups only"],["none","None"]];
+    const yn = (name, val) => `<select name="${name}"><option value="">—</option><option value="true" ${val === true ? "selected" : ""}>Yes</option><option value="false" ${val === false ? "selected" : ""}>No</option></select>`;
+    const fields = (u = {}) => `
+        <div class="fieldset">Where</div>
+        <label>Unit reference<input name="unit_reference" required placeholder="SUN-301" value="${esc(u.unit_reference || "")}" ${u.id ? "disabled title=\"The reference can't be changed\"" : ""}></label>
+        <label style="flex:2 1 240px">Street address<input name="address_line1" value="${esc(u.address_line1 || "")}" placeholder="12 Maple St"></label>
+        <label>Unit / apt<input name="address_line2" value="${esc(u.address_line2 || "")}" placeholder="#B"></label>
+        <label>City<input name="city" value="${esc(u.city || "")}"></label>
+        <label style="flex:0 1 90px">State<input name="state" maxlength="50" value="${esc(u.state || "")}" placeholder="CA"></label>
+        <label style="flex:0 1 120px">ZIP<input name="zip_code" maxlength="20" value="${esc(u.zip_code || "")}"></label>
+        <label style="flex:0 1 110px">Floor<input name="floor" maxlength="20" value="${esc(u.floor || "")}" placeholder="2"></label>
+        <div class="fieldset">The home</div>
+        <label>Type<select name="unit_type"><option value="">—</option>${TYPES.map(t => `<option ${t === u.unit_type ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+        <label style="flex:0 1 110px">Bedrooms<input name="bedrooms" type="number" min="0" max="20" step="1" value="${u.bedrooms ?? ""}"></label>
+        <label style="flex:0 1 110px">Bathrooms<input name="bathrooms" type="number" min="0" max="20" step="0.5" value="${u.bathrooms ?? ""}"></label>
+        <label style="flex:0 1 130px">Square feet<input name="square_feet" type="number" min="1" step="1" value="${u.square_feet ?? ""}"></label>
+        <label style="flex:0 1 120px">Year built<input name="year_built" type="number" min="1700" max="2100" value="${u.year_built ?? ""}"></label>
+        <label>Laundry<select name="laundry"><option value="">—</option>${LAUNDRY.map(([k, l]) => `<option value="${k}" ${k === u.laundry ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+        <label>Parking<input name="parking" maxlength="100" value="${esc(u.parking || "")}" placeholder="1 covered space"></label>
+        <label style="flex:0 1 110px">Pets${yn("pets_allowed", u.pets_allowed)}</label>
+        <label style="flex:0 1 110px">Furnished${yn("furnished", u.furnished)}</label>
+        <div class="fieldset">Money &amp; notes</div>
+        <label>Asking rent<input name="market_rent" type="number" min="0" step="0.01" value="${u.market_rent ?? ""}" placeholder="2400.00"></label>
+        <label style="flex:2 1 240px">Utilities included<input name="utilities_included" maxlength="255" value="${esc(u.utilities_included || "")}" placeholder="Water, trash"></label>
+        <label style="flex:3 1 300px">Notes<input name="notes" value="${esc(u.notes || "")}"></label>`;
+    const body = (f, isNew) => { const x = Object.fromEntries(new FormData(f)), out = {};
+      const num = k => x[k] === "" ? null : Number(x[k]), txt = k => (x[k] || "").trim() || null, bool = k => x[k] === "" ? null : x[k] === "true";
+      if (isNew) out.unit_reference = x.unit_reference.trim();
+      for (const k of ["address_line1","address_line2","city","state","zip_code","floor","unit_type","parking","laundry","utilities_included","notes"]) out[k] = txt(k);
+      for (const k of ["bedrooms","bathrooms","square_feet","year_built","market_rent"]) out[k] = num(k);
+      out.pets_allowed = bool("pets_allowed"); out.furnished = bool("furnished");
+      return out; };
+    const laundryName = Object.fromEntries(LAUNDRY);
+    v.innerHTML = `${canWork() ? `<div class="card" id="uForm"><div class="head-row"><h2>Units</h2><button class="btn sm ghost" id="addUnitBtn" type="button">+ Add unit</button></div><div id="uFormBody" hidden></div></div>` : ""}
       <div class="card"><h2>${units.length} unit${units.length===1?"":"s"}</h2>${table([
         ...(me.role==="super_admin" ? [{h:"Company", f:r => esc(cos[r.company_id])}] : []),
-        {h:"Reference", f:r => `<b>${esc(r.unit_reference)}</b>`}, {h:"Address", f:r => esc([r.address_line1, r.city].filter(Boolean).join(", "))},
+        {h:"Unit", f:r => `<b>${esc(r.unit_reference)}</b>${r.unit_type ? `<div class="muted" style="font-size:12px">${esc(r.unit_type)}</div>` : ""}`},
+        {h:"Address", f:r => esc([[r.address_line1, r.address_line2].filter(Boolean).join(" "), r.city, [r.state, r.zip_code].filter(Boolean).join(" ")].filter(Boolean).join(", ")) || "—"},
         {h:"Beds / baths", f:r => [r.bedrooms, r.bathrooms].map(x => x ?? "—").join(" / ")},
+        {h:"Sq ft", num:1, f:r => r.square_feet ? Number(r.square_feet).toLocaleString() : "—"},
+        {h:"Features", f:r => `<span class="muted" style="font-size:12.5px">${esc([r.laundry && "Laundry: " + (laundryName[r.laundry] || r.laundry), r.parking && "Parking: " + r.parking, r.pets_allowed === true && "Pets OK", r.pets_allowed === false && "No pets", r.furnished && "Furnished", r.utilities_included && "Incl.: " + r.utilities_included].filter(Boolean).join(" · ")) || "—"}</span>`},
+        {h:"Asking rent", num:1, f:r => r.market_rent != null ? money(r.market_rent) : "—"},
+        {h:"Occupancy", f:r => occupied.has(r.id) ? `<span class="badge ok">Leased</span>` : `<span class="badge warn">Vacant</span>`},
+        ...(canWork() ? [{h:"", f:r => `<button class="btn sm ghost" data-uedit-unit="${r.id}">Edit</button>`}] : []),
       ], units)}</div>`;
-    bindForm("fu", b => api("POST","/rental-units", b));
+    const holder = document.getElementById("uFormBody"), btn = document.getElementById("addUnitBtn");
+    const openForm = u => {
+      holder.hidden = false; btn.textContent = "Close";
+      holder.innerHTML = `<p class="muted" style="margin:-6px 0 10px">${u ? `Editing <b>${esc(u.unit_reference)}</b>` : "New unit: only the reference is required; fill in what you know."}</p>
+        <form id="fu" class="row">${fields(u || {})}<button class="btn" type="submit">${u ? "Save" : "Add unit"}</button></form><div class="fmsg"></div>`;
+      bindForm("fu", (_, f) => u ? api("PATCH", `/rental-units/${u.id}`, body(f, false)) : api("POST", "/rental-units", body(f, true)));
+      document.getElementById("uForm").scrollIntoView({behavior: "smooth", block: "start"});
+    };
+    if (btn) btn.onclick = () => { if (!holder.hidden) { holder.hidden = true; btn.textContent = "+ Add unit"; } else openForm(null); };
+    v.querySelectorAll("[data-uedit-unit]").forEach(b => b.onclick = () => openForm(units.find(u => u.id === b.dataset.ueditUnit)));
   },
 
   async tenants(v){
-    const tenants = await get("/tenants");
-    v.innerHTML = `<div class="card"><h2>Add a tenant</h2><form id="ft" class="row">
+    const [tenants, leases, units] = await Promise.all([get("/tenants"), get("/leases"), get("/rental-units")]);
+    const unitRef = Object.fromEntries(units.map(u => [u.id, u.unit_reference]));
+    const homeOf = t => leases.filter(l => l.tenant_ids.includes(t.id) && l.status === "active").map(l => unitRef[l.rental_unit_id] || "Lease");
+    const view = tenantsView === "inactive" ? "inactive" : "active";
+    const act = tenants.filter(t => (t.status || "active") === "active"), inact = tenants.filter(t => (t.status || "active") !== "active");
+    const rows = view === "active" ? act : inact;
+    const STATUS = {evicted: `<span class="badge bad">Evicted</span>`, inactive: `<span class="badge">Moved out</span>`};
+    v.innerHTML = `${canWork() ? `<div class="card"><h2>Add a tenant</h2><form id="ft" class="row">
         <label>Name<input name="name" required></label><label>Email<input name="email" type="email"></label><label>Phone<input name="phone"></label>
-        <button class="btn" type="submit">Add tenant</button></form><div class="fmsg"></div></div>
-      <div class="card"><h2>Tenants</h2>${table([
+        <button class="btn" type="submit">Add tenant</button></form><div class="fmsg"></div></div>` : ""}
+      <div id="evictBox"></div>
+      <div class="card"><div class="head-row"><h2>Tenants</h2>
+        <div class="subtabs"><button data-tv="active" class="${view === "active" ? "on" : ""}">Active<b>${act.length}</b></button><button data-tv="inactive" class="${view === "inactive" ? "on" : ""}">Inactive<b>${inact.length}</b></button></div></div>${table([
         {h:"Name", f:r => `<b>${esc(r.name)}</b>`}, {h:"Contact", f:r => esc([r.email, r.phone].filter(Boolean).join(" · "))},
-        {h:"Portal login", f:r => r.user_id ? `<span class="badge ok">Has login</span>` : isCoAdmin() ? `<button class="btn sm ghost" data-login="${r.id}" data-user="${esc(suggestUser(r.name))}">Create login</button>` : `<span class="muted">None (admin can add)</span>`},
-      ], tenants)}<div id="loginbox"></div></div>`;
+        {h:"Home", f:r => homeOf(r).length ? esc(homeOf(r).join(", ")) : `<span class="muted">—</span>`},
+        ...(view === "active" ? [
+          {h:"Portal login", f:r => r.user_id ? `<span class="badge ok">Has login</span>` : isCoAdmin() ? `<button class="btn sm ghost" data-login="${r.id}" data-user="${esc(suggestUser(r.name))}">Create login</button>` : `<span class="muted">None (admin can add)</span>`},
+          ...(isCoAdmin() ? [{h:"", f:r => `<button class="btn sm ghost" data-evict="${r.id}" style="color:var(--bad)">Evict</button>`}] : []),
+        ] : [
+          {h:"Status", f:r => STATUS[r.status] || esc(r.status)},
+          {h:"Since", f:r => r.status_changed_at ? day(r.status_changed_at) : "—"},
+          {h:"Reason", f:r => r.status_reason ? `<span class="muted" style="font-size:13px">${esc(r.status_reason)}</span>` : ""},
+          ...(isCoAdmin() ? [{h:"", f:r => `<button class="btn sm ghost" data-react="${r.id}">Reactivate</button>`}] : []),
+        ]),
+      ], rows, view === "active" ? "No active tenants." : "No former tenants.")}<div id="loginbox"></div></div>`;
     bindForm("ft", b => api("POST","/tenants", Object.fromEntries(Object.entries(b).filter(([,x]) => x))));
+    v.querySelectorAll("[data-tv]").forEach(b => b.onclick = () => { tenantsView = b.dataset.tv; reload(); });
     v.querySelectorAll("[data-login]").forEach(b => b.onclick = () => {
       const box = document.getElementById("loginbox");
       box.innerHTML = `<div class="card" style="margin:16px 0 0"><h2>Portal login for ${esc(tenants.find(t => t.id === b.dataset.login).name)}</h2>
@@ -681,6 +752,29 @@ const VIEWS = {
         <p class="muted" style="font-size:13px;margin:8px 0 0">Share the username and password with the tenant. They'll only ever see their own lease data.</p></div>`;
       bindForm("fl", x => api("POST", `/tenants/${b.dataset.login}/login`, x));
     });
+    // Evict: confirm what will happen, then do it
+    v.querySelectorAll("[data-evict]").forEach(b => b.onclick = () => {
+      const t = tenants.find(x => x.id === b.dataset.evict), homes = homeOf(t);
+      const mates = leases.filter(l => l.tenant_ids.includes(t.id) && l.status === "active").flatMap(l => l.tenant_ids).filter(id => id !== t.id).map(id => (tenants.find(x => x.id === id) || {}).name).filter(Boolean);
+      const box = document.getElementById("evictBox");
+      box.innerHTML = `<div class="card" style="border-color:color-mix(in srgb,var(--bad) 45%,transparent)"><h2>Evict ${esc(t.name)}?</h2>
+        <ul style="margin:0 0 12px;padding-left:20px;color:var(--muted);font-size:14px">
+          <li>${t.user_id ? "Their portal login is switched off <b>immediately</b> (signed out everywhere, Telegram unlinked)." : "They have no portal login."}</li>
+          <li>They move to the <b>Inactive</b> tab as <b>Evicted</b>. Payments and history are kept.</li></ul>
+        <form id="fev" class="row">
+          ${homes.length ? `<label style="flex:none;flex-direction:row;align-items:center;gap:8px;color:var(--ink)"><input type="checkbox" name="end_lease" checked style="width:auto">End their lease (${esc(homes.join(", "))}) today, reason "eviction"${mates.length ? ` <span class="muted">· this also ends it for ${esc(mates.join(", "))}</span>` : ""}</label>` : ""}
+          <label style="flex:1 1 100%">Reason (optional)<input name="reason" maxlength="500" placeholder="e.g. non-payment, court order #…"></label>
+          <button class="btn danger" type="submit">Evict ${esc(t.name)}</button><button class="btn ghost" type="button" id="fevCancel">Cancel</button></form><div class="fmsg"></div></div>`;
+      document.getElementById("fevCancel").onclick = () => { box.innerHTML = ""; };
+      const f = document.getElementById("fev");
+      f.onsubmit = async e => { e.preventDefault(); const d = new FormData(f);
+        try { await api("POST", `/tenants/${t.id}/evict`, {reason: d.get("reason") || null, end_lease: !!d.get("end_lease")}); tenantsView = "inactive"; reload(); }
+        catch (err) { flash(f.parentElement.querySelector(".fmsg"), err.message); } };
+      box.scrollIntoView({behavior: "smooth", block: "start"});
+    });
+    v.querySelectorAll("[data-react]").forEach(b => b.onclick = async () => {
+      if (!confirm("Reactivate this tenant? Their old login stays off; create a new one if they need the portal.")) return;
+      try { await api("POST", `/tenants/${b.dataset.react}/reactivate`); tenantsView = "active"; reload(); } catch (e) { alert(e.message); } });
   },
 
   async leases(v){
@@ -692,7 +786,7 @@ const VIEWS = {
     const busy = new Set(leases.filter(l => l.status === "active").map(l => l.rental_unit_id));
     v.innerHTML = `${canWork() ? `<div class="card"><h2>Start a lease</h2><form id="fl" class="row">
         <label>Unit<select name="rental_unit_id" required>${units.filter(u => !busy.has(u.id)).map(u => `<option value="${u.id}">${esc(u.unit_reference)}</option>`).join("") || `<option value="">No vacant units</option>`}</select></label>
-        <label>Tenant(s)<select name="tenant_ids" multiple required>${tenants.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label>
+        <label>Tenant(s)<select name="tenant_ids" multiple required>${tenants.filter(t => (t.status || "active") === "active").map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label>
         <label>Start<input name="start_date" type="date" required value="${today()}"></label>
         <label>End <span class="muted">(blank = month-to-month)</span><input name="end_date" type="date"></label>
         <label>Rent / month<input name="monthly_rent" type="number" step="0.01" min="0" required></label>

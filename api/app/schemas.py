@@ -113,10 +113,18 @@ class TenantOut(BaseModel):
     name: str
     email: Optional[str]
     phone: Optional[str]
+    status: str = "active"            # active, inactive, evicted
+    status_changed_at: Optional[datetime] = None
+    status_reason: Optional[str] = None
     is_deleted: bool
 
     class Config:
         from_attributes = True
+
+
+class TenantEvict(BaseModel):
+    reason: Optional[str] = None
+    end_lease: bool = True     # also end their active lease(s) today, reason "eviction"
 
 
 class DashboardSummaryOut(BaseModel):
@@ -490,6 +498,14 @@ class RentalUnitCreate(BaseModel):
     bathrooms: Optional[float] = None
     notes: Optional[str] = None
     occupancy_status: Optional[str] = None
+    square_feet: Optional[int] = None
+    floor: Optional[str] = None
+    parking: Optional[str] = None
+    laundry: Optional[str] = None          # in-unit, shared, hookups, none
+    pets_allowed: Optional[bool] = None
+    furnished: Optional[bool] = None
+    utilities_included: Optional[str] = None
+    market_rent: Optional[float] = None    # asking rent
 
 
 class RentalUnitUpdate(BaseModel):
@@ -505,6 +521,14 @@ class RentalUnitUpdate(BaseModel):
     bathrooms: Optional[float] = None
     notes: Optional[str] = None
     occupancy_status: Optional[str] = None
+    square_feet: Optional[int] = None
+    floor: Optional[str] = None
+    parking: Optional[str] = None
+    laundry: Optional[str] = None          # in-unit, shared, hookups, none
+    pets_allowed: Optional[bool] = None
+    furnished: Optional[bool] = None
+    utilities_included: Optional[str] = None
+    market_rent: Optional[float] = None    # asking rent
 
 
 class RentalUnitOut(BaseModel):
@@ -522,6 +546,14 @@ class RentalUnitOut(BaseModel):
     bathrooms: Optional[float]
     notes: Optional[str]
     occupancy_status: Optional[str]
+    square_feet: Optional[int] = None
+    floor: Optional[str] = None
+    parking: Optional[str] = None
+    laundry: Optional[str] = None          # in-unit, shared, hookups, none
+    pets_allowed: Optional[bool] = None
+    furnished: Optional[bool] = None
+    utilities_included: Optional[str] = None
+    market_rent: Optional[float] = None    # asking rent
     status: str
     is_deleted: bool
 
