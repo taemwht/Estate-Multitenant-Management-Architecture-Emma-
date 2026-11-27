@@ -30,3 +30,6 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Vercel CLI link for web/ (project + org ids)
+.vercel/

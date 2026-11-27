@@ -1,0 +1,917 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EMMA · AI Property Manager</title>
+<meta name="description" content="EMMA is an AI-driven property manager: rent, leases, maintenance and safety check-ins for every building, with an assistant that works within your role.">
+<meta name="theme-color" content="#070a13">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2040%2040%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22fs%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%239a97ff%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%232dd4ee%22/%3E%3C/linearGradient%3E%3ClinearGradient%20id%3D%22fb%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23151d3a%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23090e1d%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20x%3D%221%22%20y%3D%221%22%20width%3D%2238%22%20height%3D%2238%22%20rx%3D%2211%22%20fill%3D%22url%28%23fb%29%22%20stroke%3D%22url%28%23fs%29%22%20stroke-opacity%3D%22.55%22/%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22url%28%23fs%29%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M8.5%2018.5%2020%209.5l11.5%209%22/%3E%3Cpath%20d%3D%22M12.5%2016.5V30h14.5%22/%3E%3Cpath%20d%3D%22M12.5%2023.5h9%22/%3E%3C/g%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%229.5%22%20r%3D%222.6%22%20fill%3D%22%232dd4ee%22/%3E%3Ccircle%20cx%3D%2222.6%22%20cy%3D%2223.5%22%20r%3D%221.9%22%20fill%3D%22%239a97ff%22/%3E%3Ccircle%20cx%3D%2228.2%22%20cy%3D%2230%22%20r%3D%221.9%22%20fill%3D%22%232dd4ee%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>try{var t=localStorage.getItem("emma-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<style>
+/* ================= EMMA design system =================
+   Dark-first "blueprint" look: deep night background, faint architectural
+   grid, glass panels, indigo→cyan accent for anything AI. Light theme via
+   the toggle (data-theme="light"). Numbers use Geist Mono. */
+:root{
+  --bg:#070a13; --bg2:#0b1122; --panel:rgba(255,255,255,.035); --panel-solid:#0d1324; --panel-hi:rgba(255,255,255,.06);
+  --ink:#e8edf7; --muted:#8a94a9; --faint:#5d6880; --line:rgba(255,255,255,.08); --line-hi:rgba(255,255,255,.14);
+  --accent:#7b7bff; --accent2:#2dd4ee; --accent-ink:#fff; --soft:rgba(123,123,255,.13);
+  --grad:linear-gradient(135deg,#7b7bff 0%,#4f8dff 55%,#2dd4ee 100%);
+  --btn:linear-gradient(135deg,#6f6cff,#4a86ff);
+  --ok:#3ddc97; --ok-soft:rgba(61,220,151,.12); --warn:#ffb454; --warn-soft:rgba(255,180,84,.12); --bad:#ff6b81; --bad-soft:rgba(255,107,129,.12);
+  --shadow:0 1px 0 rgba(255,255,255,.04) inset,0 10px 30px -12px rgba(0,0,0,.6);
+  --glow:0 0 0 1px rgba(123,123,255,.35),0 8px 30px -6px rgba(79,141,255,.45);
+  --grid:rgba(123,140,255,.07); --field:rgba(255,255,255,.04);
+  --mono:"Geist Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+:root[data-theme="light"]{
+  --bg:#f4f6fb; --bg2:#eef1f8; --panel:rgba(255,255,255,.75); --panel-solid:#fff; --panel-hi:#fff;
+  --ink:#0c1222; --muted:#5b6579; --faint:#8a93a6; --line:#e2e6ef; --line-hi:#cfd5e2;
+  --accent:#5b5bf5; --accent2:#0aa5c2; --soft:rgba(91,91,245,.09);
+  --ok:#14915a; --ok-soft:#e5f6ee; --warn:#b35f00; --warn-soft:#fdf1e1; --bad:#d23a52; --bad-soft:#fdeaee;
+  --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px -12px rgba(16,24,40,.12);
+  --glow:0 0 0 1px rgba(91,91,245,.3),0 8px 24px -8px rgba(79,141,255,.35);
+  --grid:rgba(60,80,160,.06); --field:#fff;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Geist,Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh;position:relative;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background:radial-gradient(900px 500px at 15% -10%,rgba(123,123,255,.18),transparent 60%),radial-gradient(800px 500px at 95% 0%,rgba(45,212,238,.12),transparent 60%),var(--bg)}
+body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:44px 44px;
+  -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000 30%,transparent 80%);mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000 30%,transparent 80%)}
+a{color:var(--accent)}
+button,input,select,textarea{font:inherit}
+::selection{background:rgba(123,123,255,.35)}
+.wrap{max-width:1160px;margin:0 auto;padding:0 16px}
+
+/* header */
+header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;gap:12px;min-height:64px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none}
+.brand svg{width:30px;height:30px;flex:none}
+.brand .wm{display:flex;flex-direction:column;line-height:1}
+.brand .wm b{font-weight:700;letter-spacing:.16em;font-size:15px}
+.brand .wm small{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--muted);margin-top:4px;text-transform:uppercase}
+.spacer{flex:1}
+.who{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:14px;flex-wrap:wrap}
+.theme{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--muted);cursor:pointer}
+.theme:hover{color:var(--ink);border-color:var(--line-hi)}
+.theme svg{width:16px;height:16px}
+
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;background:var(--soft);color:var(--accent);white-space:nowrap;border:1px solid color-mix(in srgb,currentColor 22%,transparent)}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.9}
+.badge.ok{background:var(--ok-soft);color:var(--ok)} .badge.warn{background:var(--warn-soft);color:var(--warn)} .badge.bad{background:var(--bad-soft);color:var(--bad)}
+
+/* tabs */
+nav.tabs{display:flex;gap:4px;overflow-x:auto;padding:5px;margin:22px 0 22px;border:1px solid var(--line);border-radius:14px;background:var(--panel);backdrop-filter:blur(10px);scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{background:none;border:0;padding:8px 14px;color:var(--muted);cursor:pointer;border-radius:10px;white-space:nowrap;font-weight:500;font-size:14px;transition:color .15s,background .15s}
+nav.tabs button:hover{color:var(--ink);background:var(--panel-hi)}
+nav.tabs button.on{color:var(--ink);background:var(--soft);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 35%,transparent)}
+
+/* layout + surfaces */
+main{padding:4px 0 64px}
+h1{font-size:24px;margin:8px 0 4px;letter-spacing:-.02em;font-weight:650} h2{font-size:15px;margin:0 0 14px;font-weight:600;letter-spacing:-.005em}
+.sub{color:var(--muted);margin:0 0 20px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow);margin-bottom:16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))}
+.stats{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:16px}
+.stat{position:relative;overflow:hidden;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:var(--shadow)}
+.stat::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:var(--grad);opacity:.7}
+.stat::after{content:"";position:absolute;right:-40px;top:-40px;width:110px;height:110px;border-radius:50%;background:radial-gradient(circle,rgba(123,123,255,.16),transparent 70%)}
+.stat b{display:block;font-family:var(--mono);font-size:24px;font-weight:500;letter-spacing:-.02em}
+.stat span{color:var(--muted);font-size:13px}
+
+/* tables */
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;color:var(--faint);font-weight:500;font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;padding:8px 12px;border-bottom:1px solid var(--line)}
+.tbl td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl tbody tr{transition:background .12s} .tbl tbody tr:hover{background:var(--panel-hi)}
+.tbl tr:last-child td{border-bottom:0}
+.scroll{overflow-x:auto}
+.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:13.5px}
+
+/* forms */
+form.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+label{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--muted);flex:1 1 160px;font-weight:500}
+input,select,textarea{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--ink);min-width:0;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus,textarea:focus{outline:0;border-color:color-mix(in srgb,var(--accent) 60%,transparent);box-shadow:0 0 0 3px rgba(123,123,255,.18)}
+select option{background:var(--panel-solid);color:var(--ink)}
+select[multiple]{min-height:84px}
+.btn{position:relative;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--btn);color:#fff;border:0;border-radius:10px;padding:10px 16px;font-weight:600;cursor:pointer;white-space:nowrap;box-shadow:0 1px 0 rgba(255,255,255,.2) inset,0 6px 18px -8px rgba(79,141,255,.7);transition:transform .12s,box-shadow .15s,filter .15s}
+.btn:hover{filter:brightness(1.08);box-shadow:var(--glow)}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:var(--panel);color:var(--ink);border:1px solid var(--line);box-shadow:none}
+.btn.ghost:hover{border-color:var(--line-hi);background:var(--panel-hi);filter:none}
+.btn.sm{padding:6px 11px;font-size:13px;border-radius:8px}
+.btn:disabled{opacity:.5;cursor:default;filter:none;box-shadow:none}
+.stack{display:flex;flex-direction:column;gap:16px}
+.stack label{flex:none}
+.stack .btn{margin-top:4px;padding:12px 14px}
+.msg{padding:10px 12px;border-radius:10px;font-size:14px;margin-top:12px;border:1px solid transparent}
+.msg.err{background:var(--bad-soft);color:var(--bad);border-color:color-mix(in srgb,var(--bad) 25%,transparent)} .msg.good{background:var(--ok-soft);color:var(--ok);border-color:color-mix(in srgb,var(--ok) 25%,transparent)}
+.empty{color:var(--muted);padding:6px 0}
+.muted{color:var(--muted)}
+.access td:first-child{font-family:var(--mono);font-size:12.5px}
+.seg{display:flex;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:3px;margin-bottom:16px}
+.seg button{flex:1;border:0;background:none;padding:8px;border-radius:7px;cursor:pointer;color:var(--muted);font-weight:500}
+.seg button.on{background:var(--panel-hi);color:var(--ink)}
+
+/* ================= start page ================= */
+.hero{display:grid;grid-template-columns:1.05fr 1fr;gap:48px;align-items:center;padding:64px 0 56px}
+.hero h1{font-size:clamp(36px,5.4vw,60px);line-height:1.02;margin:0 0 18px;letter-spacing:-.04em;font-weight:650}
+.hero h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p.lead{color:var(--muted);font-size:17.5px;max-width:520px;margin:0 0 28px}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink);background:var(--panel);border:1px solid var(--line);padding:6px 12px 6px 10px;border-radius:999px;margin-bottom:22px}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--accent2);box-shadow:0 0 0 0 rgba(45,212,238,.6);animation:pulse 2s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 8px rgba(45,212,238,0)}100%{box-shadow:0 0 0 0 rgba(45,212,238,0)}}
+.cta{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.cta .btn{padding:12px 22px;font-size:15px}
+.trust{display:flex;gap:18px;flex-wrap:wrap;margin-top:26px;color:var(--faint);font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase}
+.trust span{display:inline-flex;align-items:center;gap:7px} .trust i{width:5px;height:5px;border-radius:50%;background:var(--accent);display:inline-block}
+/* product-as-hero */
+.stage{position:relative;border-radius:20px;border:1px solid var(--line-hi);background:linear-gradient(180deg,var(--panel-hi),var(--panel));box-shadow:0 30px 80px -30px rgba(40,60,160,.55);overflow:hidden;backdrop-filter:blur(14px)}
+.stage::before{content:"";position:absolute;inset:-1px;border-radius:20px;padding:1px;background:var(--grad);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.55;pointer-events:none}
+.stage .bar{display:flex;align-items:center;gap:7px;padding:11px 14px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.06em}
+.stage .bar i{width:9px;height:9px;border-radius:50%;background:var(--line-hi)}
+.stage .body{position:relative;padding:18px;display:grid;gap:12px}
+.blueprint{position:relative;height:190px;border-radius:14px;border:1px solid var(--line);background:linear-gradient(var(--grid) 1px,transparent 1px) 0 0/22px 22px,linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/22px 22px;overflow:hidden}
+.blueprint svg{position:absolute;inset:0;width:100%;height:100%}
+.blueprint .tag{position:absolute;font-family:var(--mono);font-size:10.5px;padding:4px 8px;border-radius:7px;background:var(--panel-solid);border:1px solid var(--line-hi);color:var(--ink);box-shadow:var(--shadow);white-space:nowrap}
+.blueprint .tag b{color:var(--accent2);font-weight:500}
+.mini{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.mini div{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel)}
+.mini b{display:block;font-family:var(--mono);font-weight:500;font-size:17px} .mini span{font-size:11.5px;color:var(--muted)}
+.bubble{max-width:85%;padding:9px 12px;border-radius:14px;font-size:13.5px;line-height:1.45}
+.bubble.q{justify-self:end;background:var(--btn);color:#fff;border-bottom-right-radius:4px}
+.bubble.a{justify-self:start;background:var(--panel-hi);border:1px solid var(--line);border-bottom-left-radius:4px}
+.bubble.a .who-ai{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--accent2);margin-bottom:3px}
+.typing{display:inline-flex;gap:3px;vertical-align:middle} .typing i{width:5px;height:5px;border-radius:50%;background:var(--accent2);animation:blink 1.2s infinite} .typing i:nth-child(2){animation-delay:.2s} .typing i:nth-child(3){animation-delay:.4s}
+/* bento */
+.section-h{font-size:clamp(24px,3.2vw,34px);margin:0 0 8px;letter-spacing:-.03em;font-weight:650;text-align:center}
+.section-sub{color:var(--muted);text-align:center;max-width:560px;margin:0 auto 28px}
+.kicker{display:block;text-align:center;font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent2);margin-bottom:10px}
+.bento{display:grid;gap:14px;grid-template-columns:repeat(6,1fr);margin:0 0 72px}
+.cell{position:relative;overflow:hidden;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow);backdrop-filter:blur(12px);grid-column:span 2;transition:border-color .2s,transform .2s}
+.cell:hover{border-color:var(--line-hi);transform:translateY(-2px)}
+.cell.w3{grid-column:span 3} .cell.w4{grid-column:span 4}
+.cell b{display:block;font-size:16px;margin:0 0 6px;letter-spacing:-.01em} .cell p{margin:0;color:var(--muted);font-size:14px}
+.cell .ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;margin-bottom:16px;color:var(--accent2);background:linear-gradient(135deg,rgba(123,123,255,.18),rgba(45,212,238,.12));border:1px solid var(--line-hi)}
+.cell .ic svg{width:19px;height:19px}
+.cell .viz{margin-top:18px}
+.bars{display:flex;align-items:flex-end;gap:6px;height:64px}
+.bars i{flex:1;border-radius:5px 5px 2px 2px;background:linear-gradient(180deg,var(--accent),rgba(123,123,255,.15))}
+.bars i.hot{background:linear-gradient(180deg,var(--accent2),rgba(45,212,238,.15))}
+.flow{display:flex;gap:6px;flex-wrap:wrap}
+.flow span{font-family:var(--mono);font-size:11px;padding:4px 8px;border-radius:7px;border:1px solid var(--line-hi);color:var(--muted)}
+.flow span.on{color:var(--ink);border-color:color-mix(in srgb,var(--accent2) 50%,transparent);background:rgba(45,212,238,.08)}
+.chatviz{display:grid;gap:8px;margin-top:18px}
+.lockviz{margin-top:18px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.lockviz div{border:1px dashed var(--line-hi);border-radius:10px;padding:10px;font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center}
+.lockviz div.me{border-style:solid;border-color:color-mix(in srgb,var(--accent) 55%,transparent);color:var(--ink);background:var(--soft)}
+.roles{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));margin:0 0 72px}
+.roles div{border:1px solid var(--line);background:var(--panel);border-radius:16px;padding:16px;font-size:13.5px;color:var(--muted);backdrop-filter:blur(10px)}
+.roles b{color:var(--ink);display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:14.5px}
+.roles b::before{content:"";width:8px;height:8px;border-radius:3px;background:var(--grad)}
+.closer{text-align:center;padding:44px 20px;border-radius:22px;border:1px solid var(--line);background:radial-gradient(600px 200px at 50% 0%,rgba(123,123,255,.18),transparent 70%),var(--panel);margin-bottom:24px}
+.closer h2{font-size:clamp(22px,3vw,30px);letter-spacing:-.03em;margin:0 0 8px}
+.closer p{color:var(--muted);margin:0 0 22px}
+footer{color:var(--faint);font-size:12.5px;text-align:center;padding:28px 16px;border-top:1px solid var(--line);font-family:var(--mono);letter-spacing:.03em}
+.back{background:none;border:0;color:var(--muted);cursor:pointer;padding:0;margin:22px auto 0;font-size:14px;display:block}
+.back:hover{color:var(--ink)}
+/* sign in */
+.auth{max-width:420px;margin:64px auto}
+.auth .mark{display:grid;place-items:center;margin-bottom:18px}
+.auth .mark svg{width:56px;height:56px;filter:drop-shadow(0 8px 24px rgba(79,141,255,.45))}
+.auth h1{text-align:center;font-size:26px}
+.auth .card{padding:26px;border-color:var(--line-hi)}
+@media (max-width:900px){
+  .hero{grid-template-columns:1fr;gap:36px;padding:40px 0 40px}
+  .bento{grid-template-columns:1fr}
+  .cell,.cell.w3,.cell.w4{grid-column:auto}
+}
+@media (max-width:560px){ .brand .wm small{display:none} .mini b{font-size:15px} }
+@media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
+/* ---------- Ask EMMA chat ---------- */
+#chatFab{position:fixed;right:22px;bottom:22px;z-index:40;display:none;align-items:center;gap:9px;padding:12px 18px 12px 14px;border-radius:999px;font-size:14.5px;box-shadow:0 0 0 1px rgba(255,255,255,.12) inset,0 12px 32px -8px rgba(79,141,255,.75)}
+#chatFab svg{width:19px;height:19px}
+#chatFab::after{content:"";position:absolute;inset:-4px;border-radius:999px;border:1px solid rgba(45,212,238,.45);animation:ring 2.6s infinite;pointer-events:none}
+@keyframes ring{0%{opacity:.8;transform:scale(.96)}100%{opacity:0;transform:scale(1.12)}}
+#chat{position:fixed;right:22px;bottom:22px;z-index:41;width:410px;max-width:calc(100vw - 32px);height:min(640px,calc(100vh - 44px));display:none;flex-direction:column;background:var(--panel-solid);border:1px solid var(--line-hi);border-radius:20px;box-shadow:0 30px 80px -20px rgba(0,0,0,.6),0 0 0 1px rgba(123,123,255,.12);overflow:hidden}
+#chat::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:var(--grad)}
+#chat.open{display:flex}
+.ch-head{display:flex;align-items:center;gap:10px;padding:12px 12px 12px 14px;border-bottom:1px solid var(--line);background:radial-gradient(300px 80px at 0 0,rgba(123,123,255,.14),transparent 70%)}
+.ch-head > svg{width:30px;height:30px;flex:none}
+.ch-head > div:not(.spacer){min-width:0} .ch-head b{font-size:15px;letter-spacing:-.01em} .ch-head .muted{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-head .x{white-space:nowrap;background:none;border:0;color:var(--muted);cursor:pointer;font-size:12.5px;padding:5px 7px;border-radius:7px}
+.ch-head .x:hover{background:var(--panel-hi);color:var(--ink)}
+.ch-log{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:10px}
+.ch-m{max-width:88%;padding:9px 13px;border-radius:15px;font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.ch-m.user{align-self:flex-end;background:var(--btn);color:#fff;border-bottom-right-radius:5px;white-space:pre-wrap}
+.ch-m.assistant{align-self:flex-start;background:var(--panel-hi);border:1px solid var(--line);border-bottom-left-radius:5px}
+.ch-m.note{align-self:center;background:none;color:var(--muted);font-size:12px;padding:0;text-align:center}
+.ch-m p{margin:0 0 6px} .ch-m p:last-child{margin:0} .ch-m ul,.ch-m ol{margin:4px 0 6px;padding-left:20px}
+.ch-m table{border-collapse:collapse;font-size:12.5px;margin:4px 0;display:block;overflow-x:auto}
+.ch-m td,.ch-m th{border:1px solid var(--line);padding:4px 8px;text-align:left}
+.ch-m code{font-family:var(--mono);font-size:12px}
+.ch-act{align-self:stretch;border:1px solid color-mix(in srgb,var(--accent) 45%,transparent);background:linear-gradient(135deg,rgba(123,123,255,.12),rgba(45,212,238,.06));border-radius:14px;padding:12px 14px;font-size:13px}
+.ch-act b{display:block;margin-bottom:6px;font-size:14px}
+.ch-act dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:0 0 10px} .ch-act dt{color:var(--muted)} .ch-act dd{margin:0;overflow-wrap:anywhere;font-family:var(--mono);font-size:12.5px}
+.ch-act .row2{display:flex;gap:8px} .ch-act .state{font-weight:600}
+.ch-sugg{display:flex;flex-wrap:wrap;gap:6px}
+.ch-sugg button{border:1px solid var(--line-hi);background:var(--panel);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;transition:border-color .15s,background .15s}
+.ch-sugg button:hover{border-color:color-mix(in srgb,var(--accent2) 60%,transparent);background:rgba(45,212,238,.07)}
+.ch-form{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
+.ch-form textarea{flex:1;resize:none;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--field);color:var(--ink);font:inherit;font-size:14px;max-height:120px;min-height:42px}
+.dots{display:inline-flex;gap:4px} .dots i{width:6px;height:6px;border-radius:50%;background:var(--accent2);animation:blink 1.2s infinite} .dots i:nth-child(2){animation-delay:.2s} .dots i:nth-child(3){animation-delay:.4s}
+.tg{display:flex;flex-direction:column;gap:12px;font-size:14px}
+.tg h3{margin:0;font-size:16px} .tg p{margin:0}
+.tg .code{font-family:var(--mono);font-size:20px;letter-spacing:.12em;background:var(--field);border:1px dashed var(--line-hi);border-radius:12px;padding:12px;text-align:center}
+.tg .btn{text-align:center;text-decoration:none}
+.tg ol{margin:0;padding-left:20px;color:var(--muted)}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+@media (max-width:560px){#chat{right:0;bottom:0;width:100vw;max-width:100vw;height:100dvh;border-radius:0;border:0}#chatFab{right:16px;bottom:16px}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="brand" href="#" id="home" aria-label="EMMA home"><svg viewBox="0 0 40 40" aria-hidden="true"><defs><linearGradient id="hs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9a97ff"/><stop offset="1" stop-color="#2dd4ee"/></linearGradient><linearGradient id="hb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#151d3a"/><stop offset="1" stop-color="#090e1d"/></linearGradient></defs><rect x="1" y="1" width="38" height="38" rx="11" fill="url(#hb)" stroke="url(#hs)" stroke-opacity=".55"/><g fill="none" stroke="url(#hs)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 18.5 20 9.5l11.5 9"/><path d="M12.5 16.5V30h14.5"/><path d="M12.5 23.5h9"/></g><circle cx="20" cy="9.5" r="2.6" fill="#2dd4ee"/><circle cx="22.6" cy="23.5" r="1.9" fill="#9a97ff"/><circle cx="28.2" cy="30" r="1.9" fill="#2dd4ee"/></svg><span class="wm"><b>EMMA</b><small>AI property manager</small></span></a>
+  <div class="spacer"></div>
+  <div class="who" id="who"></div>
+  <button class="theme" id="themeBtn" type="button" aria-label="Switch light or dark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+</div></header>
+<div class="wrap"><main id="app"></main></div>
+<footer>EMMA · Estate Multitenant Management Architecture · Demo environment: every screen shows exactly what the API lets the signed-in role see</footer>
+
+<button class="btn" id="chatFab" aria-label="Ask EMMA"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z" opacity=".7"/></svg>Ask EMMA</button>
+<section id="chat" aria-label="Ask EMMA">
+  <div class="ch-head"><svg viewBox="0 0 40 40" aria-hidden="true"><defs><linearGradient id="cs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9a97ff"/><stop offset="1" stop-color="#2dd4ee"/></linearGradient><linearGradient id="cb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#151d3a"/><stop offset="1" stop-color="#090e1d"/></linearGradient></defs><rect x="1" y="1" width="38" height="38" rx="11" fill="url(#cb)" stroke="url(#cs)" stroke-opacity=".55"/><g fill="none" stroke="url(#cs)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 18.5 20 9.5l11.5 9"/><path d="M12.5 16.5V30h14.5"/><path d="M12.5 23.5h9"/></g><circle cx="20" cy="9.5" r="2.6" fill="#2dd4ee"/><circle cx="22.6" cy="23.5" r="1.9" fill="#9a97ff"/><circle cx="28.2" cy="30" r="1.9" fill="#2dd4ee"/></svg><div><b>Ask EMMA</b><div class="muted" id="chSub"></div></div><div class="spacer"></div>
+    <button class="x" id="chTg" title="Use EMMA on Telegram">Telegram</button><button class="x" id="chNew" title="Start over">New chat</button><button class="x" id="chClose" aria-label="Close">✕</button></div>
+  <div class="ch-log" id="chLog" aria-live="polite"></div>
+  <form class="ch-form" id="chForm"><textarea id="chIn" rows="1" maxlength="4000" placeholder="Ask about your properties…"></textarea><button class="btn" type="submit">Send</button></form>
+</section>
+<script>
+// API calls go to /api on this same site; Vercel forwards them to the EMMA API (vercel.json).
+// Same-origin means no CORS and no "local network access" prompt in the browser.
+const API = new URLSearchParams(location.search).get("api") || "/api";
+const ROLE_LABEL = {super_admin:"Super admin", company_admin:"Company admin", staff:"Staff", tenant:"Tenant", contractor:"Contractor"};
+const $app = document.getElementById("app"), $who = document.getElementById("who");
+const store = {
+  get(k){ try{return sessionStorage.getItem(k)}catch{return null} },
+  set(k,v){ try{v==null?sessionStorage.removeItem(k):sessionStorage.setItem(k,v)}catch{} },
+};
+let me = null, company = null, tab = null, cache = {};
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money = n => n == null ? "—" : "$" + Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const day = d => d ? new Date(d.length === 10 ? d + "T00:00:00" : d).toLocaleDateString() : "—";
+const today = () => new Date().toISOString().slice(0,10);
+
+async function api(method, path, body, retry = true){
+  const headers = {"Content-Type":"application/json"};
+  const t = store.get("access"); if (t) headers.Authorization = "Bearer " + t;
+  let res;
+  try { res = await fetch(API + path, {method, headers, body: body ? JSON.stringify(body) : undefined}); }
+  catch { throw Object.assign(new Error("Can't reach the API. The server PC may be off."), {status:0}); }
+  if (res.status === 401 && retry && store.get("refresh") && !path.startsWith("/auth/")) {
+    const r = await fetch(API + "/auth/refresh", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({refresh_token: store.get("refresh")})});
+    if (r.ok) { store.set("access", (await r.json()).access_token); return api(method, path, body, false); }
+    logout(); throw Object.assign(new Error("Session expired, please sign in again."), {status:401});
+  }
+  const text = await res.text(); let data = null; try { data = text ? JSON.parse(text) : null; } catch { data = {detail: text.slice(0, 200)}; }
+  if (!res.ok) {
+    let d = data && data.detail; if (Array.isArray(d)) d = d.map(x => x.msg).join("; ");
+    throw Object.assign(new Error(d || res.statusText), {status: res.status});
+  }
+  return data;
+}
+const get = p => api("GET", p);
+async function getMany(paths){ const out = {}; await Promise.all(Object.entries(paths).map(async ([k,p]) => { out[k] = await get(p); })); return out; }
+
+function logout(){ chatReset(); shown = null; store.set("access", null); store.set("refresh", null); me = company = null; cache = {}; render(); }
+function flash(el, text, ok){ el.innerHTML = `<div class="msg ${ok?"good":"err"}">${esc(text)}</div>`; }
+
+/* ---------------- start page (signed out) ---------------- */
+const ICON = {
+  rent:'<path d="M3 7h18v10H3z"/><circle cx="12" cy="12" r="2.5"/>',
+  wrench:'<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-2.5z"/>',
+  people:'<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.5a3 3 0 0 1 0 6M21 20c0-2.6-1.6-4.8-4-5.6"/>',
+  shield:'<path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  check:'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/>',
+  chat:'<path d="M4 5h16v11H9l-5 4z"/>',
+  send:'<path d="M21 3 3 10.5l7 2.5 2.5 7z"/><path d="M10 13l11-10"/>',
+  house:'<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5h4v5"/>',
+  spark:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>',
+};
+const LOGO = id => `<svg viewBox="0 0 40 40" aria-hidden="true"><defs><linearGradient id="${id}s" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9a97ff"/><stop offset="1" stop-color="#2dd4ee"/></linearGradient><linearGradient id="${id}b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#151d3a"/><stop offset="1" stop-color="#090e1d"/></linearGradient></defs><rect x="1" y="1" width="38" height="38" rx="11" fill="url(#${id}b)" stroke="url(#${id}s)" stroke-opacity=".55"/><g fill="none" stroke="url(#${id}s)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 18.5 20 9.5l11.5 9"/><path d="M12.5 16.5V30h14.5"/><path d="M12.5 23.5h9"/></g><circle cx="20" cy="9.5" r="2.6" fill="#2dd4ee"/><circle cx="22.6" cy="23.5" r="1.9" fill="#9a97ff"/><circle cx="28.2" cy="30" r="1.9" fill="#2dd4ee"/></svg>`;
+const ic = k => `<div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON[k]}</svg></div>`;
+const goStart = () => { history.pushState(null, "", location.pathname + location.search); shown = "start"; renderLanding(); };
+function renderLanding(){
+  $who.innerHTML = `<button class="btn ghost sm" data-go="signin">Sign in</button>`;
+  $app.innerHTML = `
+  <section class="hero">
+    <div>
+      <span class="eyebrow"><span class="pulse"></span>Estate Multitenant Management Architecture</span>
+      <h1>The AI property manager<br>for <em>every building.</em></h1>
+      <p class="lead">EMMA runs rent, leases, repairs and safety check-ins across every unit, and answers in plain language. Ask her who owes rent, report a leak, or log a payment; she works strictly within your role.</p>
+      <div class="cta"><button class="btn" data-go="signin">Sign in to EMMA</button><a class="btn ghost" href="#features" id="seeHow">See what she does</a></div>
+    </div>
+    <div class="stage" aria-hidden="true">
+      <div class="bar"><i></i><i></i><i></i><span style="margin-left:8px">emma · portfolio overview</span></div>
+      <div class="body">
+        <div class="blueprint">
+          <svg viewBox="0 0 400 190" preserveAspectRatio="xMidYMid meet" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <defs><linearGradient id="bpg" x1="0" x2="1"><stop offset="0" stop-color="#9a97ff"/><stop offset="1" stop-color="#2dd4ee"/></linearGradient></defs>
+            <path d="M30 162H370" style="stroke:var(--line-hi)"/>
+            <path d="M118 162V94L200 38l82 56v68" stroke="url(#bpg)" stroke-width="2"/>
+            <path d="M200 162V98" style="stroke:var(--line-hi)" stroke-dasharray="4 5"/>
+            <rect x="136" y="104" width="38" height="26" rx="3" style="stroke:var(--line-hi)"/><rect x="226" y="104" width="38" height="26" rx="3" style="stroke:var(--line-hi)"/>
+            <path d="M148 162v-20h16v20M238 162v-20h16v20" style="stroke:var(--line-hi)"/>
+            <path d="M200 38C150 22 100 24 72 40" stroke="#2dd4ee" stroke-opacity=".55" stroke-dasharray="3 5"/>
+            <path d="M264 117c34 0 52-18 70-40" stroke="#9a97ff" stroke-opacity=".6" stroke-dasharray="3 5"/>
+            <path d="M155 130c-30 10-60 18-84 18" stroke="#2dd4ee" stroke-opacity=".45" stroke-dasharray="3 5"/>
+            <circle cx="200" cy="38" r="12" stroke="#2dd4ee" stroke-opacity=".25"/><circle cx="200" cy="38" r="5" fill="#2dd4ee"/>
+            <circle cx="264" cy="117" r="3.5" fill="#9a97ff"/><circle cx="155" cy="130" r="3.5" fill="#2dd4ee"/>
+          </svg>
+          <span class="tag" style="left:4%;top:9%">UNIT A · rent <b>paid</b></span>
+          <span class="tag" style="right:4%;top:28%">UNIT B · <b>repair scheduled</b></span>
+          <span class="tag" style="left:3%;bottom:8%">EMMA · <b>2 insights</b></span>
+        </div>
+        <div class="mini"><div><b>98%</b><span>rent collected</span></div><div><b>3</b><span>open repairs</span></div><div><b>0</b><span>overdue check-ins</span></div></div>
+        <div class="bubble q">Who's behind on rent this month?</div>
+        <div class="bubble a"><div class="who-ai">${LOGO("st").replace('<svg', '<svg width="14" height="14"')} EMMA</div>Two leases are behind, <b>$7,750</b> in total. Unit B is two months late. Want me to log a payment?</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <span class="kicker">Platform</span>
+    <h2 class="section-h">Your whole portfolio, one intelligent system</h2>
+    <p class="section-sub">Built around the home: every unit, lease and repair connected, with an assistant that already knows your buildings.</p>
+    <div class="bento">
+      <div class="cell w4">${ic("spark")}<b>Ask EMMA anything</b><p>Plain-language questions and commands on the web or Telegram. She looks things up instantly and drafts changes for you to confirm. Nothing changes until you click.</p>
+        <div class="chatviz"><div class="bubble q">The kitchen tap in 2B is leaking</div><div class="bubble a"><div class="who-ai">EMMA</div>Drafted a repair request for 2B · Kitchen · normal priority. <b>Confirm?</b></div></div></div>
+      <div class="cell w2">${ic("rent")}<b>Rent &amp; arrears</b><p>Payments, late fees and rent changes, with a running balance per lease.</p>
+        <div class="viz bars"><i style="height:62%"></i><i style="height:80%"></i><i style="height:70%"></i><i style="height:92%"></i><i style="height:76%"></i><i class="hot" style="height:100%"></i></div></div>
+      <div class="cell w2">${ic("wrench")}<b>Maintenance</b><p>Tenants report it, staff schedule it, contractors close it out.</p>
+        <div class="viz flow"><span class="on">Submitted</span><span class="on">Scheduled</span><span class="on">In progress</span><span>Completed</span><span>Verified</span></div></div>
+      <div class="cell w2">${ic("house")}<b>Units, tenants &amp; leases</b><p>Every home in one place, with portal logins so tenants can see their own account.</p></div>
+      <div class="cell w2">${ic("check")}<b>Safety check-ins</b><p>Yearly smoke-detector and hazard check-ins with automatic reminders and tenant sign-off.</p></div>
+      <div class="cell w3">${ic("shield")}<b>Private by design</b><p>Each company's data is walled off in the database itself, not just hidden on screen. EMMA obeys the same walls.</p>
+        <div class="lockviz"><div>Company A</div><div class="me">Your company</div><div>Company C</div></div></div>
+      <div class="cell w3">${ic("send")}<b>EMMA on Telegram</b><p>Link your account once and message EMMA from your phone. Same access, same confirm buttons, wherever you are.</p>
+        <div class="chatviz"><div class="bubble a"><div class="who-ai">EMMA</div>Record rent payment · $2,150.00 · check</div><div class="flow"><span class="on">✅ Confirm</span><span>✖ Cancel</span></div></div></div>
+    </div>
+  </section>
+
+  <div class="closer"><h2>Meet your new property manager.</h2><p>Sign in with the account your property company or the EMMA team gave you.</p><button class="btn" data-go="signin">Sign in to EMMA</button></div>`;
+  document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { location.hash = b.dataset.go; });
+  document.getElementById("seeHow").onclick = e => { e.preventDefault(); document.getElementById("features").scrollIntoView({behavior: "smooth"}); };
+}
+let shown = null;  // which signed-out screen is on display, so a repeat event never redraws (and wipes) a form
+function signedOut(){ const v = location.hash === "#signin" ? "in" : "start"; if (v === shown && $app.childElementCount) return; shown = v; return v === "start" ? renderLanding() : renderAuth(v); }
+window.addEventListener("hashchange", () => { if (!store.get("access")) signedOut(); });
+document.getElementById("home").onclick = e => { e.preventDefault(); if (!store.get("access")) goStart(); else { tab = null; render(); } };
+
+/* ---------------- auth screens ---------------- */
+function renderAuth(mode = "in"){
+  $who.innerHTML = "";
+  $app.innerHTML = `
+  <div class="auth">
+    <div class="mark">${LOGO("au")}</div>
+    <h1>Welcome back</h1>
+    <p class="sub" style="text-align:center">Sign in with the account your property company or the EMMA team gave you.</p>
+    <div class="card">
+      <form id="f" class="stack">
+        <label>Username<input name="username" required autocomplete="username" autocapitalize="none" spellcheck="false" autofocus></label>
+        <label>Password<input name="password" type="password" required autocomplete="current-password"></label>
+        <button class="btn">Sign in</button>
+      </form>
+      <div id="m"></div>
+    </div>
+    <button class="back" id="back">&larr; Back to start</button>
+  </div>`;
+  document.getElementById("back").onclick = goStart;
+  document.getElementById("f").onsubmit = async e => {
+    e.preventDefault(); const body = Object.fromEntries(new FormData(e.target)); const btn = e.target.querySelector("button"); btn.disabled = true;
+    try {
+      const t = await api("POST","/auth/login",body);
+      store.set("access", t.access_token); store.set("refresh", t.refresh_token); history.replaceState(null, "", location.pathname + location.search); render();
+    } catch (err) { flash(document.getElementById("m"), err.message); btn.disabled = false; }
+  };
+}
+
+/* ---------------- tabs per role ---------------- */
+const TABS = {
+  tenant: [["home","My home"],["payments","Payments"],["maint","Maintenance"],["checkins","Safety check-ins"]],
+  company_admin: [["dash","Dashboard"],["units","Units"],["tenants","Tenants"],["leases","Leases"],["payments","Payments"],["maint","Maintenance"],["contractors","Contractors"],["checkins","Check-ins"],["accounts","Accounts"],["access","What I can see"]],
+  super_admin: [["companies","Companies"],["accounts","All accounts"],["units","All units"],["leases","All leases"],["maint","All maintenance"],["access","What I can see"]],
+  contractor: [["jobs","My jobs"],["access","What I can see"]],
+};
+TABS.staff = TABS.company_admin.filter(([k]) => k !== "accounts");
+
+async function render(){
+  if (!store.get("access")) return signedOut();
+  try { me = await get("/auth/me"); company = me.company_id ? await get("/companies/me").catch(() => null) : null; }
+  catch (e) { if (e.status === 0) { $app.innerHTML = `<div class="card" style="margin-top:24px"><h2>API unreachable</h2><p class="muted">${esc(e.message)}</p><button class="btn" onclick="render()">Retry</button></div>`; return; } return logout(); }
+  $who.innerHTML = `<span class="badge">${esc(ROLE_LABEL[me.role] || me.role)}</span><span>${esc(me.username)}${company ? " · " + esc(company.name) : ""}</span><button class="btn ghost sm" id="out">Sign out</button>`;
+  document.getElementById("out").onclick = logout;
+  chatShow(true);
+  const tabs = TABS[me.role] || TABS.contractor;
+  if (!tab || !tabs.some(t => t[0] === tab)) tab = tabs[0][0];
+  $app.innerHTML = `<nav class="tabs">${tabs.map(([k,l]) => `<button data-t="${k}" class="${k===tab?"on":""}">${l}</button>`).join("")}</nav><div id="view"></div>`;
+  $app.querySelectorAll("nav.tabs button").forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
+  showView();
+}
+async function showView(){
+  const v = document.getElementById("view"); v.innerHTML = `<p class="muted">Loading…</p>`;
+  try { await VIEWS[tab](v); } catch (e) { v.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+}
+const reload = () => showView();
+
+/* ---------------- shared bits ---------------- */
+const statusBadge = s => {
+  const c = {Completed:"ok",Verified:"ok",active:"ok",Submitted:"warn","In Progress":"warn",Scheduled:"warn","On Hold":"bad",Cancelled:"bad",ended:""}[s] ?? "";
+  return `<span class="badge ${c}">${esc(s)}</span>`;
+};
+const table = (cols, rows, empty = "Nothing here yet.") => rows.length
+  ? `<div class="scroll"><table class="tbl"><thead><tr>${cols.map(c => `<th class="${c.num?"num":""}">${c.h}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${cols.map(c => `<td class="${c.num?"num":""}">${c.f(r)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`
+  : `<p class="empty">${empty}</p>`;
+function bindForm(id, handler){
+  const f = document.getElementById(id); if (!f) return;
+  f.onsubmit = async e => {
+    e.preventDefault(); const btn = f.querySelector("button[type=submit],button:not([type])"); if (btn) btn.disabled = true;
+    const m = f.parentElement.querySelector(".fmsg");
+    try { await handler(Object.fromEntries(new FormData(f)), f); reload(); }
+    catch (err) { if (m) flash(m, err.message); if (btn) btn.disabled = false; }
+  };
+}
+const canWork = () => me.role === "company_admin" || me.role === "staff";  // day-to-day work
+const isCoAdmin = () => me.role === "company_admin";                        // accounts, deletes, logins
+const suggestUser = name => String(name || "").trim().toLowerCase().split(/\s+/)[0].replace(/[^a-z0-9._-]/g, "");
+const TRADES = ["plumber","electrician","hvac","handyman","roofer","appliance","locksmith","pest_control","landscaping","general","other"];
+const companyMap = async () => me.role === "super_admin" ? Object.fromEntries((await get("/companies")).map(c => [c.id, c.name])) : {};
+
+/* ---------------- views ---------------- */
+const VIEWS = {
+  async home(v){
+    const {leases, units} = await getMany({leases:"/leases", units:"/rental-units"});
+    if (!leases.length) { v.innerHTML = `<div class="card"><h2>No lease yet</h2><p class="muted">Your property manager hasn't linked a lease to your account.</p></div>`; return; }
+    const unitById = Object.fromEntries(units.map(u => [u.id, u]));
+    const parts = await Promise.all(leases.map(async l => ({l, ar: await get(`/leases/${l.id}/arrears`)})));
+    v.innerHTML = parts.map(({l, ar}) => {
+      const u = unitById[l.rental_unit_id];
+      return `<h1>${esc(u ? u.address_line1 || u.unit_reference : "Your home")}</h1><p class="sub">${u ? esc([u.unit_reference, u.city].filter(Boolean).join(" · ")) : ""} · lease since ${day(l.start_date)} ${statusBadge(l.status)}</p>
+      <div class="stats">
+        <div class="stat"><b>${money(l.monthly_rent)}</b><span>Monthly rent, due day ${l.due_day_of_month}</span></div>
+        <div class="stat"><b style="color:${ar.total_owed>0?"var(--bad)":"var(--ok)"}">${money(ar.total_owed)}</b><span>Currently owed</span></div>
+        <div class="stat"><b>${money(ar.total_paid)}</b><span>Paid since move-in</span></div>
+        <div class="stat"><b>${money(ar.credit_balance)}</b><span>Credit</span></div>
+      </div>
+      <div class="card"><h2>Month by month</h2>${table([
+        {h:"Month", f:r => new Date(r.year, r.month-1).toLocaleString(undefined,{month:"long",year:"numeric"})},
+        {h:"Due", f:r => day(r.due_date)},
+        {h:"Rent", num:1, f:r => money(r.expected_rent)},
+        {h:"Paid", num:1, f:r => money(r.paid)},
+        {h:"Outstanding", num:1, f:r => r.outstanding > 0 ? `<b style="color:var(--bad)">${money(r.outstanding)}</b>` : money(0)},
+      ], ar.monthly_breakdown.slice().reverse())}</div>`;
+    }).join("");
+  },
+
+  async dash(v){
+    const {s, overdue} = await getMany({s:"/dashboard/summary", overdue:"/dashboard/overdue-rent"});
+    v.innerHTML = `<h1>${esc(company ? company.name : "Dashboard")}</h1><p class="sub">This month at a glance.</p>
+    <div class="stats">
+      <div class="stat"><b>${s.total_units}</b><span>Units (${s.occupied_units} occupied)</span></div>
+      <div class="stat"><b>${s.active_leases}</b><span>Active leases</span></div>
+      <div class="stat"><b>${money(s.total_monthly_rent)}</b><span>Rent roll / month</span></div>
+      <div class="stat"><b>${money(s.rent_collected_this_month)}</b><span>Collected this month</span></div>
+      <div class="stat"><b>${money(s.security_deposits_held)}</b><span>Deposits held</span></div>
+      <div class="stat"><b>${s.annual_checkins_acknowledged}/${s.annual_checkins_total}</b><span>Check-ins acknowledged</span></div>
+    </div>
+    <div class="grid">
+      <div class="card"><h2>Overdue this month</h2>${table([
+        {h:"Unit", f:r => esc(r.unit_reference)}, {h:"Tenants", f:r => esc(r.tenant_names.join(", "))},
+        {h:"Rent", num:1, f:r => money(r.monthly_rent)}, {h:"Paid", num:1, f:r => money(r.amount_paid_this_month)},
+      ], overdue, "Everyone is paid up.")}</div>
+      <div class="card"><h2>Maintenance by status</h2>${table([
+        {h:"Status", f:r => statusBadge(r[0])}, {h:"Requests", num:1, f:r => r[1]},
+      ], Object.entries(s.maintenance_by_status), "No requests.")}</div>
+    </div>`;
+  },
+
+  async units(v){
+    const [units, cos] = [await get("/rental-units"), await companyMap()];
+    v.innerHTML = `${canWork() ? `<div class="card"><h2>Add a unit</h2><form id="fu" class="row">
+        <label>Reference<input name="unit_reference" required placeholder="SUN-301"></label>
+        <label>Street<input name="address_line1"></label><label>City<input name="city"></label>
+        <button class="btn" type="submit">Add unit</button></form><div class="fmsg"></div></div>` : ""}
+      <div class="card"><h2>${units.length} unit${units.length===1?"":"s"}</h2>${table([
+        ...(me.role==="super_admin" ? [{h:"Company", f:r => esc(cos[r.company_id])}] : []),
+        {h:"Reference", f:r => `<b>${esc(r.unit_reference)}</b>`}, {h:"Address", f:r => esc([r.address_line1, r.city].filter(Boolean).join(", "))},
+        {h:"Beds / baths", f:r => [r.bedrooms, r.bathrooms].map(x => x ?? "—").join(" / ")},
+      ], units)}</div>`;
+    bindForm("fu", b => api("POST","/rental-units", b));
+  },
+
+  async tenants(v){
+    const tenants = await get("/tenants");
+    v.innerHTML = `<div class="card"><h2>Add a tenant</h2><form id="ft" class="row">
+        <label>Name<input name="name" required></label><label>Email<input name="email" type="email"></label><label>Phone<input name="phone"></label>
+        <button class="btn" type="submit">Add tenant</button></form><div class="fmsg"></div></div>
+      <div class="card"><h2>Tenants</h2>${table([
+        {h:"Name", f:r => `<b>${esc(r.name)}</b>`}, {h:"Contact", f:r => esc([r.email, r.phone].filter(Boolean).join(" · "))},
+        {h:"Portal login", f:r => r.user_id ? `<span class="badge ok">Has login</span>` : isCoAdmin() ? `<button class="btn sm ghost" data-login="${r.id}" data-user="${esc(suggestUser(r.name))}">Create login</button>` : `<span class="muted">None (admin can add)</span>`},
+      ], tenants)}<div id="loginbox"></div></div>`;
+    bindForm("ft", b => api("POST","/tenants", Object.fromEntries(Object.entries(b).filter(([,x]) => x))));
+    v.querySelectorAll("[data-login]").forEach(b => b.onclick = () => {
+      const box = document.getElementById("loginbox");
+      box.innerHTML = `<div class="card" style="margin:16px 0 0"><h2>Portal login for ${esc(tenants.find(t => t.id === b.dataset.login).name)}</h2>
+        <form id="fl" class="row"><label>Username<input name="username" required autocapitalize="none" spellcheck="false" minlength="3" title="3-50 letters, numbers, dots, dashes or underscores" value="${b.dataset.user}"></label>
+        <label>Temporary password<input name="password" minlength="8" required></label><button class="btn" type="submit">Create login</button></form><div class="fmsg"></div>
+        <p class="muted" style="font-size:13px;margin:8px 0 0">Share the username and password with the tenant. They'll only ever see their own lease data.</p></div>`;
+      bindForm("fl", x => api("POST", `/tenants/${b.dataset.login}/login`, x));
+    });
+  },
+
+  async leases(v){
+    const [{leases, units}, cos] = [await getMany({leases:"/leases", units:"/rental-units"}), await companyMap()];
+    const tenants = me.role === "super_admin" || canWork() ? await get("/tenants") : [];
+    const unitRef = Object.fromEntries(units.map(u => [u.id, u.unit_reference]));
+    const tName = Object.fromEntries(tenants.map(t => [t.id, t.name]));
+    const busy = new Set(leases.filter(l => l.status === "active").map(l => l.rental_unit_id));
+    v.innerHTML = `${canWork() ? `<div class="card"><h2>Start a lease</h2><form id="fl" class="row">
+        <label>Unit<select name="rental_unit_id" required>${units.filter(u => !busy.has(u.id)).map(u => `<option value="${u.id}">${esc(u.unit_reference)}</option>`).join("") || `<option value="">No vacant units</option>`}</select></label>
+        <label>Tenant(s)<select name="tenant_ids" multiple required>${tenants.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label>
+        <label>Start<input name="start_date" type="date" required value="${today()}"></label>
+        <label>Rent / month<input name="monthly_rent" type="number" step="0.01" min="0" required></label>
+        <label>Due day<input name="due_day_of_month" type="number" min="1" max="31" value="1" required></label>
+        <button class="btn" type="submit">Create lease</button></form><div class="fmsg"></div></div>` : ""}
+      <div class="card"><h2>Leases</h2>${table([
+        ...(me.role==="super_admin" ? [{h:"Company", f:r => esc(cos[r.company_id])}] : []),
+        {h:"Unit", f:r => `<b>${esc(unitRef[r.rental_unit_id] || "—")}</b>`},
+        {h:"Tenants", f:r => esc(r.tenant_ids.map(id => tName[id] || "…").join(", "))},
+        {h:"Start", f:r => day(r.start_date)}, {h:"Rent", num:1, f:r => money(r.monthly_rent)},
+        {h:"Status", f:r => statusBadge(r.status)},
+        {h:"Owed", num:1, f:r => `<span data-owed="${r.id}" class="muted">…</span>`},
+      ], leases)}</div>`;
+    leases.forEach(async l => { const el = v.querySelector(`[data-owed="${l.id}"]`); try { const a = await get(`/leases/${l.id}/arrears`); el.className = ""; el.innerHTML = a.total_owed > 0 ? `<b style="color:var(--bad)">${money(a.total_owed)}</b>` : money(0); } catch { el.textContent = "—"; } });
+    const f = document.getElementById("fl");
+    if (f) f.onsubmit = async e => {
+      e.preventDefault(); const d = new FormData(f);
+      try { await api("POST","/leases",{rental_unit_id:d.get("rental_unit_id"), tenant_ids:d.getAll("tenant_ids"), start_date:d.get("start_date"), monthly_rent:+d.get("monthly_rent"), due_day_of_month:+d.get("due_day_of_month")}); reload(); }
+      catch (err) { flash(f.parentElement.querySelector(".fmsg"), err.message); }
+    };
+  },
+
+  async payments(v){
+    const {receipts, leases, units} = await getMany({receipts:"/rent-receipts", leases:"/leases", units:"/rental-units"});
+    const unitRef = Object.fromEntries(units.map(u => [u.id, u.unit_reference]));
+    const leaseLabel = Object.fromEntries(leases.map(l => [l.id, unitRef[l.rental_unit_id] || "Lease"]));
+    v.innerHTML = `${canWork() ? `<div class="card"><h2>Record a payment</h2><form id="fp" class="row">
+        <label>Lease<select name="lease_id" required>${leases.filter(l => l.status === "active").map(l => `<option value="${l.id}">${esc(leaseLabel[l.id])}</option>`).join("")}</select></label>
+        <label>Amount<input name="amount" type="number" step="0.01" min="0" required></label>
+        <label>Date<input name="date_received" type="date" value="${today()}" required></label>
+        <label>Method<select name="method"><option>check</option><option>cash</option><option>other</option></select></label>
+        <button class="btn" type="submit">Record</button></form><div class="fmsg"></div></div>` : ""}
+      <div class="card"><h2>${me.role === "tenant" ? "Your payments" : "Payments"}</h2>${table([
+        {h:"Date", f:r => day(r.date_received)}, {h:"Unit", f:r => esc(leaseLabel[r.lease_id] || "—")},
+        {h:"Method", f:r => esc(r.method)}, {h:"Amount", num:1, f:r => `<b>${money(r.amount)}</b>`},
+        ...(isCoAdmin() ? [{h:"", f:r => `<button class="btn sm ghost" data-del="${r.id}">Delete</button>`}] : []),
+      ], receipts, "No payments recorded.")}</div>`;
+    bindForm("fp", b => api("POST","/rent-receipts",{...b, amount:+b.amount}));
+    v.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => { if (confirm("Delete this payment? An admin can restore it later.")) { await api("DELETE", `/rent-receipts/${b.dataset.del}`); reload(); } });
+  },
+
+  async maint(v){
+    const [{reqs, units}, cos] = [await getMany({reqs:"/maintenance-requests", units:"/rental-units"}), await companyMap()];
+    const crew = canWork() ? await get("/contractors") : [];
+    const crewName = Object.fromEntries(crew.map(c => [c.id, c.name]));
+    const unitRef = Object.fromEntries(units.map(u => [u.id, u.unit_reference]));
+    const canFile = me.role === "tenant" || canWork();
+    const STAT = ["Submitted","Scheduled","In Progress","On Hold","Completed","Verified","Cancelled"];
+    v.innerHTML = `${canFile ? `<div class="card"><h2>${me.role === "tenant" ? "Report a problem" : "New request"}</h2><form id="fm" class="row">
+        <label>Unit<select name="rental_unit_id" required>${units.map(u => `<option value="${u.id}">${esc(u.unit_reference)}</option>`).join("")}</select></label>
+        <label style="flex:3 1 260px">What's wrong?<input name="description" required></label>
+        <label>Priority<select name="priority"><option>normal</option><option>high</option><option>emergency</option><option>low</option></select></label>
+        <button class="btn" type="submit">Submit</button></form><div class="fmsg"></div></div>` : ""}
+      <div class="card"><h2>${me.role === "tenant" ? "Your requests" : "Requests"}</h2>${table([
+        ...(me.role==="super_admin" ? [{h:"Company", f:r => esc(cos[r.company_id])}] : []),
+        {h:"Unit", f:r => esc(unitRef[r.rental_unit_id] || "—")}, {h:"Problem", f:r => esc(r.description)},
+        {h:"Priority", f:r => esc(r.priority)},
+        ...(canWork() ? [
+          {h:"Contractor", f:r => `<select data-crew="${r.id}"><option value="">—</option>${crew.map(c => `<option value="${c.id}" ${c.id===r.assigned_contractor_id?"selected":""}>${esc(c.name)}</option>`).join("")}</select>`},
+          {h:"Date", f:r => `<input type="date" data-date="${r.id}" value="${r.scheduled_date || ""}">`},
+        ] : me.role === "super_admin" ? [] : []),
+        {h:"Status", f:r => canWork() ? `<select data-st="${r.id}">${STAT.map(s => `<option ${s===r.status?"selected":""}>${s}</option>`).join("")}</select>` : statusBadge(r.status)},
+        {h:"", f:r => me.role === "tenant" && r.status === "Completed" ? `<button class="btn sm" data-ver="${r.id}">Confirm fixed</button>` : ""},
+      ], reqs, "No open requests.")}</div>`;
+    bindForm("fm", b => api("POST","/maintenance-requests", b));
+    v.querySelectorAll("[data-st]").forEach(s => s.onchange = async () => { try { await api("PATCH", `/maintenance-requests/${s.dataset.st}`, {status:s.value}); } catch (e) { alert(e.message); } reload(); });
+    const patch = async (id, body) => { try { await api("PATCH", `/maintenance-requests/${id}`, body); } catch (e) { alert(e.message); } reload(); };
+    v.querySelectorAll("[data-crew]").forEach(s => s.onchange = () => s.value && patch(s.dataset.crew, {assigned_contractor_id:s.value}));
+    v.querySelectorAll("[data-date]").forEach(i => i.onchange = () => i.value && patch(i.dataset.date, {scheduled_date:i.value}));
+    v.querySelectorAll("[data-ver]").forEach(b => b.onclick = async () => { await api("POST", `/maintenance-requests/${b.dataset.ver}/verify`); reload(); });
+  },
+
+  async checkins(v){
+    const {cks, leases, units} = await getMany({cks:"/annual-checkins", leases:"/leases", units:"/rental-units"});
+    const unitRef = Object.fromEntries(units.map(u => [u.id, u.unit_reference]));
+    const leaseLabel = Object.fromEntries(leases.map(l => [l.id, unitRef[l.rental_unit_id] || "Lease"]));
+    const H = {co_detector:"CO detector", smoke_detector:"Smoke detector", mold:"Mold", lead_paint:"Lead paint", asbestos:"Asbestos"};
+    v.innerHTML = `${canWork() ? `<div class="card"><h2>Schedule a check-in</h2><form id="fc" class="row">
+        <label>Lease<select name="lease_id">${leases.filter(l => l.status==="active").map(l => `<option value="${l.id}">${esc(leaseLabel[l.id])}</option>`).join("")}</select></label>
+        <label>Hazard<select name="hazard_type">${Object.entries(H).map(([k,l]) => `<option value="${k}">${l}</option>`).join("")}</select></label>
+        <label>Due<input name="due_date" type="date" required value="${today()}"></label>
+        <button class="btn" type="submit">Schedule</button></form><div class="fmsg"></div></div>` : ""}
+      <div class="card"><h2>Safety check-ins</h2>${table([
+        {h:"Unit", f:r => esc(leaseLabel[r.lease_id] || "—")}, {h:"Hazard", f:r => esc(H[r.hazard_type] || r.hazard_type)},
+        {h:"Due", f:r => day(r.due_date)},
+        {h:"Status", f:r => r.acknowledged_at ? `<span class="badge ok">Acknowledged ${day(r.acknowledged_at)}</span>`
+          : me.role === "tenant" ? `<button class="btn sm" data-ack="${r.id}">Acknowledge</button>` : `<span class="badge warn">Waiting on tenant</span>`},
+      ], cks, "No check-ins scheduled.")}</div>`;
+    bindForm("fc", b => api("POST","/annual-checkins",{...b, year:new Date(b.due_date).getFullYear()}));
+    v.querySelectorAll("[data-ack]").forEach(b => b.onclick = async () => { await api("POST", `/annual-checkins/${b.dataset.ack}/acknowledge`, {}); reload(); });
+  },
+
+  async accounts(v){
+    const [users, cos] = [await get("/users"), await companyMap()];
+    v.innerHTML = `${isCoAdmin() ? `<div class="card"><h2>Add a staff member or admin</h2><form id="fa" class="row">
+        <label>Username<input name="username" required autocapitalize="none" spellcheck="false" minlength="3" title="3-50 letters, numbers, dots, dashes or underscores"></label>
+        <label>Temporary password<input name="password" minlength="8" required></label>
+        <label>Role<select name="role"><option value="staff">Staff</option><option value="company_admin">Company admin</option></select></label>
+        <button class="btn" type="submit">Add account</button></form><div class="fmsg"></div>
+        <p class="muted" style="font-size:13px;margin:8px 0 0">Tenant logins are added from the Tenants tab, contractor logins from the Contractors tab.</p></div>` : ""}
+      <div class="card"><h2>${users.length} account${users.length===1?"":"s"}</h2><p class="muted" style="margin-top:-6px">${me.role === "super_admin" ? "Every login on the platform." : "Logins in your company. Super admin accounts and other companies are hidden by the database."}</p>${table([
+      ...(me.role==="super_admin" ? [{h:"Company", f:r => r.company_id ? esc(cos[r.company_id]) : `<span class="muted">Platform</span>`}] : []),
+      {h:"Username", f:r => `<b>${esc(r.username)}</b>` + (r.id === me.id ? ` <span class="muted">(you)</span>` : "")},
+      {h:"Email", f:r => r.email ? esc(r.email) : `<span class="muted">—</span>`},
+      {h:"Role", f:r => `<span class="badge">${esc(ROLE_LABEL[r.role] || r.role)}</span>`},
+      ...(isCoAdmin() ? [{h:"", f:r => r.id === me.id ? "" : `<button class="btn sm ghost" data-rm="${r.id}" data-email="${esc(r.username)}">Remove</button>`}] : []),
+    ], users)}</div>`;
+    bindForm("fa", b => api("POST","/users", b));
+    v.querySelectorAll("[data-rm]").forEach(b => b.onclick = async () => { if (confirm(`Remove the login for ${b.dataset.email}? Their records stay; they just can't sign in.`)) { try { await api("DELETE", `/users/${b.dataset.rm}`); } catch (e) { alert(e.message); } reload(); } });
+  },
+
+  async contractors(v){
+    const crew = await get("/contractors");
+    v.innerHTML = `<div class="card"><h2>Add a contractor</h2><form id="fk" class="row">
+        <label>Name<input name="name" required></label>
+        <label>Trade<select name="trade">${TRADES.map(t => `<option>${t}</option>`).join("")}</select></label>
+        <label>Phone<input name="contact_phone"></label><label>Email<input name="contact_email" type="email"></label>
+        <button class="btn" type="submit">Add contractor</button></form><div class="fmsg"></div></div>
+      <div class="card"><h2>Contractors</h2>${table([
+        {h:"Name", f:r => `<b>${esc(r.name)}</b>`}, {h:"Trade", f:r => esc(r.trade)},
+        {h:"Contact", f:r => esc([r.contact_phone, r.contact_email].filter(Boolean).join(" · "))},
+        {h:"Login", f:r => r.has_login ? `<span class="badge ok">Has login</span>` : isCoAdmin() ? `<button class="btn sm ghost" data-klogin="${r.id}" data-user="${esc(suggestUser(r.name))}">Create login</button>` : `<span class="muted">None (admin can add)</span>`},
+      ], crew, "No contractors yet.")}<div id="kbox"></div></div>`;
+    bindForm("fk", b => api("POST","/contractors", Object.fromEntries(Object.entries(b).filter(([,x]) => x))));
+    v.querySelectorAll("[data-klogin]").forEach(b => b.onclick = () => {
+      document.getElementById("kbox").innerHTML = `<div class="card" style="margin:16px 0 0"><h2>Login for ${esc(crew.find(c => c.id === b.dataset.klogin).name)}</h2>
+        <form id="fkl" class="row"><label>Username<input name="username" required autocapitalize="none" spellcheck="false" minlength="3" title="3-50 letters, numbers, dots, dashes or underscores" value="${b.dataset.user}"></label>
+        <label>Temporary password<input name="password" minlength="8" required></label><button class="btn" type="submit">Create login</button></form><div class="fmsg"></div>
+        <p class="muted" style="font-size:13px;margin:8px 0 0">They'll only see jobs assigned to them, nothing about rent or other tenants.</p></div>`;
+      bindForm("fkl", x => api("POST", `/contractors/${b.dataset.klogin}/login`, x));
+    });
+  },
+
+  async jobs(v){
+    const jobs = await get("/my-jobs");
+    const open = jobs.filter(j => !["Completed","Verified"].includes(j.status));
+    v.innerHTML = `<h1>My jobs</h1><p class="sub">${open.length} open job${open.length===1?"":"s"} assigned to you.</p>
+      <div class="card">${table([
+        {h:"When", f:r => day(r.scheduled_date)}, {h:"Company", f:r => esc(r.company_name)},
+        {h:"Where", f:r => `<b>${esc(r.address || r.unit_reference || "—")}</b>${r.location_detail ? `<br><span class="muted">${esc(r.location_detail)}</span>` : ""}`},
+        {h:"Job", f:r => esc(r.description) + (r.tenant_availability ? `<br><span class="muted">Tenant available: ${esc(r.tenant_availability)}</span>` : "")},
+        {h:"Priority", f:r => esc(r.priority)}, {h:"Status", f:r => statusBadge(r.status)},
+        {h:"", f:r => ["Scheduled","In Progress","On Hold"].includes(r.status) ? `<select data-job="${r.id}"><option value="">Update…</option>${["In Progress","On Hold","Completed"].filter(s => s !== r.status).map(s => `<option>${s}</option>`).join("")}</select> <button class="btn sm ghost" data-note="${r.id}">Add note</button>` : ""},
+      ], jobs, "No jobs assigned to you right now.")}<div id="nbox"></div></div>`;
+    v.querySelectorAll("[data-job]").forEach(s => s.onchange = async () => { if (!s.value) return; try { await api("PATCH", `/my-jobs/${s.dataset.job}`, {status:s.value}); } catch (e) { alert(e.message); } reload(); });
+    v.querySelectorAll("[data-note]").forEach(b => b.onclick = async () => {
+      const log = await get(`/my-jobs/${b.dataset.note}/log`);
+      document.getElementById("nbox").innerHTML = `<div class="card" style="margin:16px 0 0"><h2>Notes</h2>${log.length ? `<ul style="margin:0 0 12px;padding-left:18px">${log.map(l => `<li>${esc(l.entry_text)}</li>`).join("")}</ul>` : `<p class="empty">No notes yet.</p>`}
+        <form id="fn" class="row"><label style="flex:3 1 260px">New note<input name="entry_text" required placeholder="Replaced the cartridge; no more drip."></label><button class="btn" type="submit">Add note</button></form><div class="fmsg"></div></div>`;
+      bindForm("fn", x => api("POST", `/my-jobs/${b.dataset.note}/log`, x));
+    });
+  },
+
+  async companies(v){
+    const cos = await get("/companies");
+    v.innerHTML = `<h1>Platform</h1><p class="sub">${cos.length} compan${cos.length===1?"y":"ies"}. Only you can add companies.</p>
+      <div class="card"><h2>New company</h2><form id="fco" class="row">
+        <label>Company name<input name="company_name" required></label>
+        <label>First admin's username<input name="admin_username" required autocapitalize="none" spellcheck="false"></label>
+        <label>Their email (optional)<input name="admin_email" type="email"></label>
+        <label>Temporary password<input name="admin_password" minlength="8" required></label>
+        <button class="btn" type="submit">Create company</button></form><div class="fmsg"></div>
+        <p class="muted" style="font-size:13px;margin:8px 0 0">The admin signs in with these details, then adds their own staff, tenants and contractors.</p></div>
+      <div class="card">${table([
+      {h:"Company", f:r => `<b>${esc(r.name)}</b>`}, {h:"Status", f:r => statusBadge(r.status)}, {h:"Contact", f:r => esc(r.contact_email || "—")},
+    ], cos)}</div>`;
+    bindForm("fco", b => api("POST","/companies", Object.fromEntries(Object.entries(b).filter(([,x]) => x))));
+  },
+
+  async access(v){
+    const checks = [
+      ["/users","User accounts"], ["/companies","All companies"], ["/tenants","Tenant records"], ["/rental-units","Units"],
+      ["/leases","Leases"], ["/rent-receipts","Payments"], ["/maintenance-requests","Maintenance requests"],
+      ["/annual-checkins","Safety check-ins"], ["/contractors","Contractors"], ["/contractor-payments","Contractor payments"],
+      ["/dashboard/summary","Company dashboard"], ["/my-jobs","Jobs assigned to me"],
+    ];
+    const rows = await Promise.all(checks.map(async ([p, label]) => {
+      try { const d = await get(p); return {p, label, ok:true, n: Array.isArray(d) ? d.length : null}; }
+      catch (e) { return {p, label, ok:false, code:e.status}; }
+    }));
+    v.innerHTML = `<h1>What can a ${esc(ROLE_LABEL[me.role] || me.role)} see?</h1><p class="sub">Live calls to every list endpoint with your login. Counts are what the API returned to you.</p>
+    <div class="card access">${table([
+      {h:"Endpoint", f:r => esc(r.p)}, {h:"Data", f:r => esc(r.label)},
+      {h:"Result", f:r => r.ok ? `<span class="badge ok">Allowed</span>` : `<span class="badge bad">Denied (${r.code})</span>`},
+      {h:"Rows visible", num:1, f:r => r.ok ? (r.n ?? "summary") : "—"},
+    ], rows)}</div>`;
+  },
+};
+
+
+/* ---------------- Ask EMMA ----------------
+   The chat runs on the API as the signed-in person (POST /chat), so EMMA
+   only sees what this role can see. Changes come back as proposals with a
+   Confirm button (POST /chat/confirm); nothing changes until you click it.
+   The conversation lives only in this browser tab. */
+const chat = {log: [], busy: false, owner: null};
+const $chat = document.getElementById("chat"), $fab = document.getElementById("chatFab"), $chLog = document.getElementById("chLog"), $chIn = document.getElementById("chIn");
+const CH_SUGG = {
+  tenant: ["How much rent do I owe?", "When does my lease end?", "Report a repair", "What's happening with my repairs?"],
+  contractor: ["What jobs do I have?", "Mark my job as in progress", "Add a note to my job"],
+  staff: ["Who owes rent right now?", "Summarize open repairs", "Which units are vacant?", "Record a rent payment"],
+  company_admin: ["Who owes rent right now?", "Summarize open repairs", "Which units are vacant?", "Record a rent payment"],
+  super_admin: ["List all companies", "How many units are on the platform?"],
+};
+const chKey = () => me ? "chat:" + me.id : null;
+function chSave(){ try { if (chKey()) sessionStorage.setItem(chKey(), JSON.stringify(chat.log.slice(-60))); } catch {} }
+function chLoad(){ try { chat.log = JSON.parse(sessionStorage.getItem(chKey()) || "[]"); } catch { chat.log = []; } }
+function chatShow(on){
+  if (!on) { $fab.style.display = "none"; $chat.classList.remove("open"); return; }
+  if (chat.owner !== me.id) { chat.owner = me.id; chLoad(); }
+  document.getElementById("chSub").textContent = me.username + " · " + (ROLE_LABEL[me.role] || me.role);
+  if (!$chat.classList.contains("open")) $fab.style.display = "inline-flex";
+}
+function chatReset(){
+  tgStop(); chat.view = "chat";
+  try { Object.keys(sessionStorage).filter(k => k.startsWith("chat:")).forEach(k => sessionStorage.removeItem(k)); } catch {}
+  chat.log = []; chat.owner = null; chatShow(false);
+}
+function mdInline(t){ return t.replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<i>$2</i>"); }
+function md(src){  // escape first, then a few safe markdown bits
+  const lines = esc(src).split("\n"); let out = "", i = 0;
+  const isRow = x => /^\s*\|/.test(x), isSep = x => /^\s*\|?[\s:|-]*-{2,}[\s:|-]*$/.test(x);
+  const isUl = x => /^\s*[-*•]\s+/.test(x), isOl = x => /^\s*\d+[.)]\s+/.test(x);
+  while (i < lines.length) {
+    const l = lines[i];
+    if (isRow(l)) {
+      const rows = []; while (i < lines.length && isRow(lines[i])) rows.push(lines[i++]);
+      const head = rows.length > 1 && isSep(rows[1]);
+      const cells = x => x.trim().replace(/^\||\|$/g, "").split("|").map(c => mdInline(c.trim()));
+      out += "<table>" + rows.filter(x => !isSep(x)).map((x, n) => "<tr>" + cells(x).map(c => head && n === 0 ? `<th>${c}</th>` : `<td>${c}</td>`).join("") + "</tr>").join("") + "</table>";
+    } else if (isUl(l)) {
+      out += "<ul>"; while (i < lines.length && isUl(lines[i])) out += "<li>" + mdInline(lines[i++].replace(/^\s*[-*•]\s+/, "")) + "</li>"; out += "</ul>";
+    } else if (isOl(l)) {
+      out += "<ol>"; while (i < lines.length && isOl(lines[i])) out += "<li>" + mdInline(lines[i++].replace(/^\s*\d+[.)]\s+/, "")) + "</li>"; out += "</ol>";
+    } else if (!l.trim()) { i++; }
+    else { const p = []; while (i < lines.length && lines[i].trim() && !isRow(lines[i]) && !isUl(lines[i]) && !isOl(lines[i])) p.push(mdInline(lines[i++].replace(/^#+\s*/, ""))); out += "<p>" + p.join("<br>") + "</p>"; }
+  }
+  return out;
+}
+const fieldName = k => k.replace(/_/g, " ").replace(/^./, c => c.toUpperCase());
+const fieldVal = (k, v) => typeof v === "object" ? esc(JSON.stringify(v)) : /amount|rent|fee|deposit/.test(k) && !isNaN(v) ? money(v) : /date/.test(k) && /^\d{4}-\d\d-\d\d$/.test(v) ? day(v) : esc(v);
+function chDraw(){
+  if (!me) return;
+  if (chat.view === "tg") return tgDraw();
+  document.getElementById("chForm").style.display = "";
+  if (!chat.log.length && !chat.busy) {
+    const about = me.role === "tenant" ? "your lease, rent and repairs" : me.role === "contractor" ? "your jobs" : "your properties, tenants, rent and repairs";
+    $chLog.innerHTML = `<div class="ch-m assistant"><p>Hi ${esc(me.username)}, I'm EMMA. Ask me about ${about}. I'll ask you to confirm before I change anything.</p></div>
+      <div class="ch-sugg">${(CH_SUGG[me.role] || []).map(q => `<button type="button">${esc(q)}</button>`).join("")}</div>`;
+    $chLog.querySelectorAll(".ch-sugg button").forEach(b => b.onclick = () => chSend(b.textContent));
+    return;
+  }
+  $chLog.innerHTML = chat.log.map((m, n) => {
+    if (m.role === "user") return `<div class="ch-m user">${esc(m.content)}</div>`;
+    if (m.role === "assistant") return `<div class="ch-m assistant">${md(m.content)}</div>`;
+    if (m.role === "note") return `<div class="ch-m note">${esc(m.content)}</div>`;
+    const f = Object.entries(m.fields || {}).filter(([k]) => !k.endsWith("_id") && k !== "id");
+    const st = m.state === "done" ? `<span class="state" style="color:var(--ok)">✓ Done</span>`
+      : m.state === "cancelled" ? `<span class="state muted">Cancelled</span>`
+      : m.state === "failed" ? `<span class="state" style="color:var(--bad)">Couldn't do it: ${esc(m.msg)}</span>`
+      : m.state === "working" ? `<span class="muted">Working…</span>`
+      : `<div class="row2"><button class="btn sm" data-ok="${n}">Confirm</button><button class="btn sm ghost" data-no="${n}">Cancel</button></div>`;
+    return `<div class="ch-act"><b>${esc(m.label)}</b>${f.length ? `<dl>${f.map(([k, v]) => `<dt>${esc(fieldName(k))}</dt><dd>${fieldVal(k, v)}</dd>`).join("")}</dl>` : ""}${st}</div>`;
+  }).join("") + (chat.busy ? `<div class="ch-m assistant"><span class="dots"><i></i><i></i><i></i></span></div>` : "");
+  $chLog.querySelectorAll("[data-ok]").forEach(b => b.onclick = () => chConfirm(+b.dataset.ok));
+  $chLog.querySelectorAll("[data-no]").forEach(b => b.onclick = () => { const a = chat.log[+b.dataset.no]; a.state = "cancelled"; delete a.token; chSave(); chDraw(); });
+  $chLog.scrollTop = $chLog.scrollHeight;
+}
+// What the AI gets back: the conversation text, plus a line for each confirmed/cancelled change.
+function chHistory(){
+  const h = [];
+  for (const m of chat.log) {
+    if (m.role === "user" || m.role === "assistant") h.push({role: m.role, content: m.content});
+    else if (m.role === "action" && m.state && m.state !== "working")
+      h.push({role: "assistant", content: `[${m.label}: ${m.state === "done" ? "the person confirmed it and it was done" : m.state === "cancelled" ? "the person cancelled it" : "failed: " + m.msg}]`});
+  }
+  let out = h.slice(-20);
+  while (out.length && out[0].role !== "user") out.shift();
+  return out;
+}
+async function chSend(text){
+  text = String(text || "").trim(); if (!text || chat.busy) return;
+  chat.log.push({role: "user", content: text}); chat.busy = true; $chIn.value = ""; $chIn.style.height = ""; chSave(); chDraw();
+  try {
+    const res = await api("POST", "/chat", {messages: chHistory()});
+    chat.log.push({role: "assistant", content: res.reply});
+    for (const a of res.actions || []) chat.log.push({role: "action", token: a.token, label: a.label, fields: a.fields});
+  } catch (e) {
+    chat.log.push({role: "note", content: e.status === 429 ? e.message : "EMMA couldn't answer: " + e.message});
+  }
+  chat.busy = false; chSave(); chDraw(); $chIn.focus();
+}
+async function chConfirm(n){
+  const a = chat.log[n]; if (!a || !a.token) return;
+  a.state = "working"; chDraw();
+  try { const r = await api("POST", "/chat/confirm", {token: a.token}); a.state = r.ok ? "done" : "failed"; a.msg = r.message; }
+  catch (e) { a.state = "failed"; a.msg = e.message; }
+  delete a.token; chSave(); chDraw();
+  if (a.state === "done") { cache = {}; reload(); }
+}
+/* Telegram: one bot for everyone. Linking proves this Telegram account is yours;
+   after that the bot acts as your login, with exactly your access. */
+let tgPoll = null;
+function tgStop(){ clearInterval(tgPoll); tgPoll = null; }
+async function tgDraw(state){
+  document.getElementById("chForm").style.display = "none";
+  const back = `<button class="btn ghost sm" id="tgBack" type="button">← Back to chat</button>`;
+  const wire = () => { const b = document.getElementById("tgBack"); if (b) b.onclick = () => { tgStop(); chat.view = "chat"; chDraw(); }; };
+  if (!state) { $chLog.innerHTML = `<div class="tg"><p class="muted">Checking…</p></div>`; try { state = await api("GET", "/telegram/link"); } catch (e) { state = {error: e.message}; } }
+  if (chat.view !== "tg") return;
+  if (state.error) $chLog.innerHTML = `<div class="tg"><div class="msg err">${esc(state.error)}</div>${back}</div>`;
+  else if (!state.enabled) $chLog.innerHTML = `<div class="tg"><h3>EMMA on Telegram</h3><p class="muted">The Telegram bot isn't running on this server yet.</p>${back}</div>`;
+  else if (state.linked) {
+    tgStop();
+    $chLog.innerHTML = `<div class="tg"><h3>✅ Telegram is linked</h3>
+      <p>Message <a href="https://t.me/${esc(state.bot_username)}" target="_blank" rel="noopener">@${esc(state.bot_username)}</a>${state.telegram_username ? ` from <b>@${esc(state.telegram_username)}</b>` : ""} and EMMA answers as <b>${esc(me.username)}</b>, with the same access you have here.</p>
+      <a class="btn" href="https://t.me/${esc(state.bot_username)}" target="_blank" rel="noopener">Open Telegram</a>
+      <button class="btn ghost" id="tgUnlink" type="button">Unlink Telegram</button>${back}</div>`;
+    document.getElementById("tgUnlink").onclick = async () => { if (!confirm("Unlink Telegram? The bot will stop answering that account.")) return; await api("DELETE", "/telegram/link"); tgDraw(); };
+  } else {
+    $chLog.innerHTML = `<div class="tg"><h3>Use EMMA on Telegram</h3>
+      <p class="muted">Chat with EMMA from your phone. She'll answer as <b>${esc(me.username)}</b>, with exactly the access you have here.</p>
+      <button class="btn" id="tgGet" type="button">Link my Telegram</button>${back}</div>`;
+    document.getElementById("tgGet").onclick = async () => {
+      let c; try { c = await api("POST", "/telegram/link-code"); } catch (e) { return tgDraw({error: e.message}); }
+      $chLog.innerHTML = `<div class="tg"><h3>Link your Telegram</h3>
+        <a class="btn" href="${esc(c.link)}" target="_blank" rel="noopener">Open in Telegram</a>
+        <ol><li>Tap <b>Open in Telegram</b>, then <b>Start</b>.</li><li>Or send this to <b>@${esc(c.bot_username)}</b>:</li></ol>
+        <div class="code">/link ${esc(c.code)}</div>
+        <p class="muted" id="tgWait">Waiting for Telegram… this code works for ${Math.round(c.expires_in / 60)} minutes, once.</p>${back}</div>`;
+      wire(); tgStop();
+      const until = Date.now() + c.expires_in * 1000;
+      tgPoll = setInterval(async () => {
+        if (chat.view !== "tg" || Date.now() > until) { tgStop(); const w = document.getElementById("tgWait"); if (w && Date.now() > until) w.textContent = "This code expired. Go back and get a new one."; return; }
+        try { const st = await api("GET", "/telegram/link"); if (st.linked) tgDraw(st); } catch {}
+      }, 3000);
+    };
+  }
+  wire();
+}
+document.getElementById("chTg").onclick = () => { if (chat.busy) return; chat.view = chat.view === "tg" ? "chat" : "tg"; if (chat.view === "chat") tgStop(); chDraw(); };
+$fab.onclick = () => { $fab.style.display = "none"; $chat.classList.add("open"); chDraw(); $chIn.focus(); };
+document.getElementById("chClose").onclick = () => { $chat.classList.remove("open"); $fab.style.display = "inline-flex"; };
+document.getElementById("chNew").onclick = () => { if (chat.busy) return; tgStop(); chat.view = "chat"; chat.log = []; chSave(); chDraw(); $chIn.focus(); };
+document.getElementById("chForm").onsubmit = e => { e.preventDefault(); chSend($chIn.value); };
+$chIn.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); chSend($chIn.value); } });
+$chIn.addEventListener("input", () => { $chIn.style.height = "auto"; $chIn.style.height = Math.min($chIn.scrollHeight, 120) + "px"; });
+
+/* light / dark */
+const $theme = document.getElementById("themeBtn");
+const SUN_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>`, MOON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>`;
+function themeIcon(){ $theme.innerHTML = document.documentElement.getAttribute("data-theme") === "light" ? MOON_SVG : SUN_SVG; }
+$theme.onclick = () => {
+  const next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", next);
+  try { localStorage.setItem("emma-theme", next); } catch {}
+  themeIcon();
+};
+themeIcon();
+
+render();
+</script>
+</body>
+</html>
