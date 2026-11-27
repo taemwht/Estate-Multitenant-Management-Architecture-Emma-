@@ -5,7 +5,8 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr
 
 
-class SignupRequest(BaseModel):
+class CompanyCreate(BaseModel):
+    """Super admin creating a company and its first company admin."""
     company_name: str
     admin_email: EmailStr
     admin_password: str
@@ -56,6 +57,38 @@ class TenantUpdate(BaseModel):
 class TenantLoginCreate(BaseModel):
     email: EmailStr
     password: str
+
+
+class LoginCreate(BaseModel):
+    """A login for an existing contractor record."""
+    email: EmailStr
+    password: str
+
+
+class UserCreate(BaseModel):
+    """Company admin adding a staff member or another admin."""
+    email: EmailStr
+    password: str
+    role: str  # "staff" or "company_admin"
+
+
+class JobOut(BaseModel):
+    """What a contractor sees about a job assigned to them: the work and
+    where it is, not the tenant's records or the company's books."""
+    id: UUID
+    company_name: str
+    unit_reference: Optional[str] = None
+    address: str
+    description: str
+    location_detail: Optional[str] = None
+    tenant_availability: Optional[str] = None
+    priority: str
+    status: str
+    scheduled_date: Optional[date] = None
+
+
+class JobUpdate(BaseModel):
+    status: str  # "In Progress", "On Hold" or "Completed"
 
 
 class TenantOut(BaseModel):
@@ -176,6 +209,7 @@ class ContractorOut(BaseModel):
     preferred_payment_method: Optional[str]
     notes: Optional[str]
     is_deleted: bool
+    has_login: bool = False
 
     class Config:
         from_attributes = True

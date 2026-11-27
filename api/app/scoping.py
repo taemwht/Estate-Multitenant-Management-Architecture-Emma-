@@ -25,6 +25,18 @@ STAFF_ROLES = ("super_admin", "company_admin", "staff")
 # Staff plus tenants, for reads that tenants get a filtered view of.
 STAFF_AND_TENANT_ROLES = STAFF_ROLES + ("tenant",)
 
+# Who may do what inside a company:
+#   staff         day-to-day work: units, tenants, leases, rent, deposits,
+#                 maintenance, contractors, check-ins.
+#   company_admin all of that, plus user accounts (staff, tenant and
+#                 contractor logins), deleting/restoring records, and
+#                 bulk import.
+# Companies themselves (and each one's first admin) are created only by
+# super_admin, via POST /companies.
+ADMIN_ROLES = ("company_admin",)
+# Reading account lists / import history: the company's admin, or super admin.
+ACCOUNT_VIEW_ROLES = ("super_admin", "company_admin")
+
 
 @dataclass
 class TenantScope:

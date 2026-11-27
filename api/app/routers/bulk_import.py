@@ -29,7 +29,7 @@ from ..database import get_db
 from ..deps import require_roles, get_actor_type
 from ..models import RentalUnit, ImportBatch, User
 from ..schemas import ImportResultOut, ImportBatchOut
-from ..scoping import STAFF_ROLES
+from ..scoping import STAFF_ROLES, ACCOUNT_VIEW_ROLES, ADMIN_ROLES
 
 logger = logging.getLogger("bulk_import")
 router = APIRouter(prefix="/bulk-import", tags=["bulk-import"])
@@ -48,7 +48,7 @@ FLOAT_FIELDS = {"bathrooms"}
 async def bulk_import_rental_units(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
     actor_type: str = Depends(get_actor_type),
 ):
     if not file.filename.lower().endswith(".csv"):
@@ -180,7 +180,7 @@ async def bulk_import_rental_units(
 @router.get("", response_model=list[ImportBatchOut])
 def list_import_batches(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(*STAFF_ROLES)),
+    current_user: User = Depends(require_roles(*ACCOUNT_VIEW_ROLES)),
 ):
     return db.query(ImportBatch).order_by(ImportBatch.uploaded_at.desc()).all()
 
@@ -189,7 +189,7 @@ def list_import_batches(
 def get_import_batch(
     batch_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(*STAFF_ROLES)),
+    current_user: User = Depends(require_roles(*ACCOUNT_VIEW_ROLES)),
 ):
     batch = db.query(ImportBatch).filter(ImportBatch.id == batch_id).first()
     if not batch:

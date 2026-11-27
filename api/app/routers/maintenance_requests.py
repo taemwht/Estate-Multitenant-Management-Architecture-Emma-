@@ -9,7 +9,7 @@ from ..database import get_db
 from ..deps import require_roles, get_actor_type
 from ..models import MaintenanceRequest, MaintenancePhoto, MaintenanceLog, RentalUnit, Contractor, ContractorCompany, Tenant, User
 from ..schemas import MaintenanceRequestCreate, MaintenanceRequestUpdate, MaintenanceRequestOut, MaintenanceLogCreate, MaintenanceLogOut
-from ..scoping import STAFF_AND_TENANT_ROLES, tenant_scope_for
+from ..scoping import STAFF_AND_TENANT_ROLES, tenant_scope_for, ADMIN_ROLES
 
 router = APIRouter(prefix="/maintenance-requests", tags=["maintenance-requests"])
 
@@ -264,7 +264,7 @@ def verify_maintenance_request(
 def soft_delete_maintenance_request(
     request_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(*MANAGE_ROLES)),
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
     actor_type: str = Depends(get_actor_type),
 ):
     """Different from Cancelled — this removes the request from default
@@ -289,7 +289,7 @@ def soft_delete_maintenance_request(
 def restore_maintenance_request(
     request_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(*MANAGE_ROLES)),
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
     actor_type: str = Depends(get_actor_type),
 ):
     req = db.query(MaintenanceRequest).filter(MaintenanceRequest.id == request_id).first()

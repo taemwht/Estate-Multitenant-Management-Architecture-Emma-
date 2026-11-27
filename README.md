@@ -21,6 +21,18 @@ Everything lives in this one repo (no submodules):
 | `db/` | PostgreSQL schema, migrations 002–008, RLS verification scripts |
 | `demo/` | Public demo stack: its own Postgres + API (127.0.0.1:8100) with seeded demo data |
 
+## Roles
+
+| Role | Sees | Can do |
+|---|---|---|
+| Super admin | Every company and account | Creates companies and each one's first admin (`POST /companies`). There is no public signup. |
+| Company admin | Everything in their company | All staff work, plus user accounts (staff, tenant and contractor logins), deleting/restoring records, bulk import |
+| Staff | Everything in their company except the account list | Day-to-day work: units, tenants, leases, rent, deposits, maintenance, contractors, check-ins |
+| Tenant | Only their own lease, payments, requests, check-ins | Report problems, confirm repairs, acknowledge check-ins |
+| Contractor | Only jobs assigned to them (`/my-jobs`) | Mark jobs In Progress / On Hold / Completed, add notes |
+
+Company isolation is enforced by Postgres RLS; the role rules above are enforced in the API (`api/app/scoping.py`).
+
 ## Skills
 
 EMMA's five CRUD skills call the FastAPI layer exclusively:

@@ -14,7 +14,7 @@ services:
     tty: true
     environment:
       API_BASE_URL: http://host.docker.internal:8000
-      API_EMAIL: admin@test.com
+      API_EMAIL: ${EMMA_API_EMAIL}
       API_PASSWORD: ${EMMA_API_PASSWORD}
     deploy:
       resources:

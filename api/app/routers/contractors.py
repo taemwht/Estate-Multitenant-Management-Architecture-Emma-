@@ -5,11 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from ..audit import write_audit_log
-from ..database import get_db
+from ..database import get_db, super_admin_session
 from ..deps import require_roles, get_actor_type
 from ..models import Contractor, ContractorCompany, MaintenanceRequest, User
-from ..schemas import ContractorCreate, ContractorUpdate, ContractorOut
-from ..scoping import STAFF_ROLES
+from ..schemas import ContractorCreate, ContractorUpdate, ContractorOut, LoginCreate
+from ..security import hash_password
+from ..scoping import STAFF_ROLES, ADMIN_ROLES
 
 router = APIRouter(prefix="/contractors", tags=["contractors"])
 WRITE_ROLES = ("company_admin", "staff")
@@ -44,6 +45,7 @@ def _to_out(db: Session, contractor: Contractor, user: User) -> ContractorOut:
     """is_deleted reflects what the CALLER sees: their own link's delete
     flag (or the global flag, which only super admin sets)."""
     out = ContractorOut.model_validate(contractor)
+    out.has_login = contractor.user_id is not None
     link = _link(db, contractor.id, user.company_id)
     if link is not None and link.is_deleted:
         out.is_deleted = True
@@ -167,7 +169,7 @@ def delete_contractor(
     contractor_id: uuid.UUID,
     force: bool = False,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
     actor_type: str = Depends(get_actor_type),
 ):
     """
@@ -230,7 +232,7 @@ def delete_contractor(
 def restore_contractor(
     contractor_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
     actor_type: str = Depends(get_actor_type),
 ):
     contractor = _get_visible(db, contractor_id, current_user)
@@ -249,6 +251,50 @@ def restore_contractor(
         entity_id=contractor.id,
     )
 
+    result = _to_out(db, contractor, current_user)
+    db.commit()
+    return result
+
+
+@router.post("/{contractor_id}/login", response_model=ContractorOut, status_code=status.HTTP_201_CREATED)
+def create_contractor_login(
+    contractor_id: uuid.UUID,
+    body: LoginCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
+    actor_type: str = Depends(get_actor_type),
+):
+    """Give a contractor a login. Only the company that created the
+    contractor can do this. The login has no company of its own: a
+    contractor signs in and sees only the jobs assigned to them, in
+    whichever companies use them (GET /my-jobs)."""
+    if len(body.password) < 8:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Password must be at least 8 characters")
+    contractor = _get_visible(db, contractor_id, current_user)
+    if contractor.created_by_company_id != current_user.company_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Only the company that added this contractor can give them a login.")
+    if contractor.user_id is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This contractor already has a login")
+
+    company_id = current_user.company_id
+    # A company-less user row is only insertable (and visible) under the bypass.
+    with super_admin_session(db, company_id=str(company_id)):
+        if db.query(User.id).filter(User.email == body.email).first():
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+        user = User(id=uuid.uuid4(), company_id=None, role="contractor",
+                    email=body.email, password_hash=hash_password(body.password))
+        db.add(user)
+        db.flush()
+        contractor.user_id = user.id
+        db.flush()
+
+    write_audit_log(
+        db, company_id=company_id, actor_id=current_user.id,
+        actor_type=actor_type, action="create_login", entity_type="contractor",
+        entity_id=contractor.id, after_state={"email": body.email},
+    )
     result = _to_out(db, contractor, current_user)
     db.commit()
     return result

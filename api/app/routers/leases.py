@@ -12,7 +12,7 @@ from ..database import get_db
 from ..deps import require_roles, get_actor_type
 from ..models import Lease, LeaseTenant, RentalUnit, Tenant, RentRateHistory, RentReceipt, User
 from ..schemas import LeaseCreate, LeaseUpdate, LeaseOut, RentChangeCreate, RentRateHistoryOut, RentRateHistoryUpdate, RentStatusOut, ArrearsOut, MonthlyArrearsEntry
-from ..scoping import STAFF_AND_TENANT_ROLES, tenant_scope_for, ensure_lease_visible
+from ..scoping import STAFF_AND_TENANT_ROLES, tenant_scope_for, ensure_lease_visible, ADMIN_ROLES
 
 router = APIRouter(prefix="/leases", tags=["leases"])
 
@@ -357,7 +357,7 @@ def soft_delete_rent_change(
     lease_id: uuid.UUID,
     history_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
     actor_type: str = Depends(get_actor_type),
 ):
     """For correcting a genuine error (duplicate entry) — NOT for an
@@ -383,7 +383,7 @@ def restore_rent_change(
     lease_id: uuid.UUID,
     history_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
     actor_type: str = Depends(get_actor_type),
 ):
     lease = _get_lease(db, lease_id, current_user)

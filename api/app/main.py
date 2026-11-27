@@ -7,7 +7,7 @@ from .config import settings
 from .routers import (
     auth, rental_units, tenants, leases, rent_receipts, security_deposits,
     contractors, maintenance_requests, contractor_payments, annual_checkins,
-    signup, bulk_import, dashboard, users, companies,
+    bulk_import, dashboard, users, companies, my_jobs,
 )
 from .scheduler import start_scheduler, stop_scheduler
 
@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
     stop_scheduler()
 
 
-app = FastAPI(title="Property Platform API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="EMMA API", version="0.1.0", lifespan=lifespan)
 
 _origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 if _origins:
@@ -33,7 +33,7 @@ if _origins:
 app.include_router(users.router)
 app.include_router(companies.router)
 app.include_router(auth.router)
-app.include_router(signup.router)
+app.include_router(my_jobs.router)
 app.include_router(bulk_import.router)
 app.include_router(dashboard.router)
 app.include_router(rental_units.router)

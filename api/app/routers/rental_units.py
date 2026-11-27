@@ -10,7 +10,7 @@ from ..database import get_db
 from ..deps import require_roles, get_actor_type
 from ..models import RentalUnit, Lease, User
 from ..schemas import RentalUnitCreate, RentalUnitUpdate, RentalUnitOut
-from ..scoping import STAFF_AND_TENANT_ROLES, tenant_scope_for
+from ..scoping import STAFF_AND_TENANT_ROLES, tenant_scope_for, ADMIN_ROLES
 
 router = APIRouter(prefix="/rental-units", tags=["rental-units"])
 
@@ -151,7 +151,7 @@ def update_rental_unit(
 def soft_delete_rental_unit(
     unit_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
     actor_type: str = Depends(get_actor_type),
 ):
     unit = db.query(RentalUnit).filter(RentalUnit.id == unit_id).first()
@@ -191,7 +191,7 @@ def soft_delete_rental_unit(
 def restore_rental_unit(
     unit_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
     actor_type: str = Depends(get_actor_type),
 ):
     """Undelete — parity with the old skill's restore_house. Not in the

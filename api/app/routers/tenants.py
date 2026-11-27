@@ -10,7 +10,7 @@ from ..security import hash_password
 from ..deps import require_roles, get_actor_type
 from ..models import Tenant, User
 from ..schemas import TenantCreate, TenantUpdate, TenantOut, TenantLoginCreate
-from ..scoping import STAFF_AND_TENANT_ROLES, tenant_scope_for
+from ..scoping import STAFF_AND_TENANT_ROLES, tenant_scope_for, ADMIN_ROLES
 
 router = APIRouter(prefix="/tenants", tags=["tenants"])
 
@@ -124,7 +124,7 @@ def update_tenant(
 def soft_delete_tenant(
     tenant_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
     actor_type: str = Depends(get_actor_type),
 ):
     """
@@ -157,7 +157,7 @@ def soft_delete_tenant(
 def restore_tenant(
     tenant_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
     actor_type: str = Depends(get_actor_type),
 ):
     tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
@@ -189,7 +189,7 @@ def create_tenant_login(
     tenant_id: uuid.UUID,
     body: TenantLoginCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
     actor_type: str = Depends(get_actor_type),
 ):
     """Give a tenant record a portal login (a `tenant`-role user in the
@@ -205,7 +205,7 @@ def create_tenant_login(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This tenant already has a login")
 
     # Emails are unique across ALL companies, so the duplicate check has to
-    # look past RLS. It only reveals "taken or not", same as /signup.
+    # look past RLS. It only reveals "taken or not".
     with super_admin_session(db, company_id=str(current_user.company_id)):
         taken = db.query(User.id).filter(User.email == body.email).first()
     if taken:

@@ -8,7 +8,7 @@ from ..database import get_db
 from ..deps import require_roles, get_actor_type
 from ..models import RentReceipt, Lease, User
 from ..schemas import RentReceiptCreate, RentReceiptUpdate, RentReceiptOut
-from ..scoping import STAFF_AND_TENANT_ROLES, tenant_scope_for, ensure_lease_visible
+from ..scoping import STAFF_AND_TENANT_ROLES, tenant_scope_for, ensure_lease_visible, ADMIN_ROLES
 
 router = APIRouter(prefix="/rent-receipts", tags=["rent-receipts"])
 
@@ -159,7 +159,7 @@ def update_rent_receipt(
 def soft_delete_rent_receipt(
     receipt_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
     actor_type: str = Depends(get_actor_type),
 ):
     """For a payment logged in error (duplicate, wrong lease). Deleted
@@ -180,7 +180,7 @@ def soft_delete_rent_receipt(
 def restore_rent_receipt(
     receipt_id: uuid.UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(*WRITE_ROLES)),
+    current_user: User = Depends(require_roles(*ADMIN_ROLES)),
     actor_type: str = Depends(get_actor_type),
 ):
     receipt = _get_receipt(db, receipt_id, current_user)

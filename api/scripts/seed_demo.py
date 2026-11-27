@@ -55,7 +55,7 @@ def main():
             user("staff", co.id, f"staff@{slug}.example.com")
             db.flush()
 
-            leases = []
+            leases, requests = [], []
             for i, (ref, street, rent, tenant_name) in enumerate(units):
                 unit = RentalUnit(id=uuid.uuid4(), company_id=co.id, unit_reference=ref,
                                   address_line1=street, city="Fremont", state="CA",
@@ -83,12 +83,14 @@ def main():
                     db.add(RentReceipt(id=uuid.uuid4(), company_id=co.id, lease_id=lease.id,
                                        amount=rent, date_received=first_of_month(m) + timedelta(days=2),
                                        method="check", recorded_by=admin.id))
-                db.add(MaintenanceRequest(
+                req = MaintenanceRequest(
                     id=uuid.uuid4(), company_id=co.id, rental_unit_id=unit.id,
                     submitted_by=tu.id, reported_by_tenant_id=tenant.id,
                     description=["Kitchen faucet drips", "Bedroom window won't latch",
                                  "Heater makes a clicking noise"][i % 3],
-                    priority=["normal", "high", "low"][i % 3], status="Submitted"))
+                    priority=["normal", "high", "low"][i % 3], status="Submitted")
+                db.add(req)
+                requests.append(req)
                 db.add(AnnualCheckin(id=uuid.uuid4(), company_id=co.id, lease_id=lease.id,
                                      year=date.today().year, hazard_type="smoke_detector",
                                      due_date=date.today() + timedelta(days=14)))
@@ -100,6 +102,16 @@ def main():
             db.add(c)
             db.flush()
             db.add(ContractorCompany(contractor_id=c.id, company_id=co.id))
+            db.flush()
+            # The contractor gets a login and one scheduled job, so the
+            # contractor view ("My jobs") has something to show.
+            cu = user("contractor", None, f"plumber@{slug}.example.com")
+            db.flush()
+            c.user_id = cu.id
+            job = requests[-1]
+            job.assigned_contractor_id = c.id
+            job.scheduled_date = date.today() + timedelta(days=3)
+            job.status = "Scheduled"
             db.flush()
 
         company("Sunrise Properties", "sunrise", [
