@@ -813,17 +813,39 @@ const VIEWS = {
 
   async contractors(v){
     const crew = await get("/contractors");
-    v.innerHTML = `<div class="card"><h2>Add a contractor</h2><form id="fk" class="row">
-        <label>Name<input name="name" required></label>
-        <label>Trade<select name="trade">${TRADES.map(t => `<option>${t}</option>`).join("")}</select></label>
-        <label>Phone<input name="contact_phone"></label><label>Email<input name="contact_email" type="email"></label>
+    // preferred payment is stored as one line, e.g. "Zelle · 555-0101"
+    const PAY = ["Zelle","Venmo","Check","Cash","Bank transfer","Card","Other"];
+    const splitPay = t => { const [m, ...rest] = String(t || "").split(" · "); return PAY.includes(m) ? [m, rest.join(" · ")] : [t ? "Other" : "", t || ""]; };
+    const fields = (c = {}) => { const [pm, pd] = splitPay(c.preferred_payment_method); return `
+        <label>Name<input name="name" required value="${esc(c.name || "")}"></label>
+        <label>Trade<select name="trade">${TRADES.map(t => `<option ${t === c.trade ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+        <label>Phone<input name="contact_phone" value="${esc(c.contact_phone || "")}"></label><label>Email<input name="contact_email" type="email" value="${esc(c.contact_email || "")}"></label>
+        <label>Preferred payment<select name="pay_method"><option value="">Not set</option>${PAY.map(m => `<option ${m === pm ? "selected" : ""}>${m}</option>`).join("")}</select></label>
+        <label>Payment details<input name="pay_detail" maxlength="80" value="${esc(pd)}" placeholder="Zelle phone/email, @handle, payee name"></label>
+        <label style="flex:2 1 220px">Notes<input name="notes" value="${esc(c.notes || "")}"></label>`; };
+    const body = f => { const x = Object.fromEntries(new FormData(f));
+      const pay = x.pay_method ? [x.pay_method, x.pay_detail.trim()].filter(Boolean).join(" · ").slice(0, 100) : (x.pay_detail.trim() || null);
+      return {name: x.name.trim(), trade: x.trade, contact_phone: x.contact_phone.trim() || null, contact_email: x.contact_email.trim() || null,
+        preferred_payment_method: pay || null, notes: x.notes.trim() || null}; };
+    v.innerHTML = `<div class="card" id="kForm"><h2>Add a contractor</h2><form id="fk" class="row">${fields()}
         <button class="btn" type="submit">Add contractor</button></form><div class="fmsg"></div></div>
       <div class="card"><h2>Contractors</h2>${table([
         {h:"Name", f:r => `<b>${esc(r.name)}</b>`}, {h:"Trade", f:r => esc(r.trade)},
         {h:"Contact", f:r => esc([r.contact_phone, r.contact_email].filter(Boolean).join(" · "))},
+        {h:"Preferred payment", f:r => { if (!r.preferred_payment_method) return `<span class="muted">—</span>`; const [m, d] = splitPay(r.preferred_payment_method);
+          return `${esc(m)}${d ? `<div class="muted" style="font-size:12px">${esc(d)}</div>` : ""}`; }},
         {h:"Login", f:r => r.has_login ? `<span class="badge ok">Has login</span>` : isCoAdmin() ? `<button class="btn sm ghost" data-klogin="${r.id}" data-user="${esc(suggestUser(r.name))}">Create login</button>` : `<span class="muted">None (admin can add)</span>`},
+        {h:"", f:r => `<button class="btn sm ghost" data-kedit="${r.id}">Edit</button>`},
       ], crew, "No contractors yet.")}<div id="kbox"></div></div>`;
-    bindForm("fk", b => api("POST","/contractors", Object.fromEntries(Object.entries(b).filter(([,x]) => x))));
+    bindForm("fk", (_, f) => api("POST","/contractors", body(f)));
+    v.querySelectorAll("[data-kedit]").forEach(b => b.onclick = () => {
+      const c = crew.find(x => x.id === b.dataset.kedit), holder = document.getElementById("kForm");
+      holder.innerHTML = `<h2>Edit ${esc(c.name)}</h2><form id="fke" class="row">${fields(c)}
+        <button class="btn" type="submit">Save</button><button class="btn ghost" type="button" id="fkeCancel">Cancel</button></form><div class="fmsg"></div>`;
+      bindForm("fke", (_, f) => api("PATCH", `/contractors/${c.id}`, body(f)));
+      document.getElementById("fkeCancel").onclick = () => reload();
+      holder.scrollIntoView({behavior: "smooth", block: "start"});
+    });
     v.querySelectorAll("[data-klogin]").forEach(b => b.onclick = () => {
       document.getElementById("kbox").innerHTML = `<div class="card" style="margin:16px 0 0"><h2>Login for ${esc(crew.find(c => c.id === b.dataset.klogin).name)}</h2>
         <form id="fkl" class="row"><label>Username<input name="username" required autocapitalize="none" spellcheck="false" minlength="3" title="3-50 letters, numbers, dots, dashes or underscores" value="${b.dataset.user}"></label>

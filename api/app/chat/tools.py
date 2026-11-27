@@ -94,8 +94,8 @@ TOOLS = [
     # contractors
     Tool("list_contractors", "GET", "/contractors", STAFF_ROLES, "List contractors (the pit crew)."),
     Tool("get_contractor", "GET", "/contractors/{contractor_id}", STAFF_ROLES, "One contractor by id."),
-    Tool("add_contractor", "POST", "/contractors", WRITE, "Add a contractor."),
-    Tool("update_contractor", "PATCH", "/contractors/{contractor_id}", WRITE, "Change a contractor's details."),
+    Tool("add_contractor", "POST", "/contractors", WRITE, "Add a contractor. preferred_payment_method is one line like 'Zelle · 555-0101' (method · details)."),
+    Tool("update_contractor", "PATCH", "/contractors/{contractor_id}", WRITE, "Change a contractor's details, including preferred_payment_method (e.g. 'Venmo · @handle')."),
     Tool("list_contractor_payments", "GET", "/contractor-payments", STAFF_ROLES, "List payments made to contractors."),
     Tool("record_contractor_payment", "POST", "/contractor-payments", WRITE, "Record a payment made to a contractor."),
 
