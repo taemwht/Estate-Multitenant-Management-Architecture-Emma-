@@ -1,8 +1,8 @@
-﻿# Data model + multi-tenancy foundation â€” setup
+# Data model + multi-tenancy foundation — setup
 
 Your Postgres 18 service is already running natively on Windows (`postgresql-x64-18`),
 already hosting the old `rental_house` DB for EMMA. This system gets its own
-**separate database** â€” don't reuse `rental_house`, the schemas have nothing in common.
+**separate database** — don't reuse `rental_house`, the schemas have nothing in common.
 
 ## 1. Create a new database
 
@@ -15,7 +15,7 @@ CREATE DATABASE property_platform;
 ## 2. Create a dedicated, non-superuser app role
 
 This is the role your future FastAPI app (and these test scripts) will connect as.
-It must NOT be a superuser and must NOT have BYPASSRLS â€” either one makes Postgres
+It must NOT be a superuser and must NOT have BYPASSRLS — either one makes Postgres
 silently skip Row-Level Security no matter what the policies say.
 
 ```sql
@@ -71,7 +71,7 @@ is why the default privileges matter.
 
 ## 6. Verify RLS actually isolates companies
 
-Run this **as `app_platform`**, not as `postgres` â€” testing as superuser would pass
+Run this **as `app_platform`**, not as `postgres` — testing as superuser would pass
 even with broken policies, since superusers ignore RLS entirely.
 
 ```
@@ -79,7 +79,7 @@ psql -U app_platform -d property_platform -f verify_rls.sql
 ```
 
 Read the output against the `-- Expected:` comments in the file. If Test 1 or Test 2
-returns both rows instead of one, something's wrong with the policy setup â€” stop and
+returns both rows instead of one, something's wrong with the policy setup — stop and
 fix it before building anything on top of this.
 
 ## How the app will use this (for when you get to the FastAPI step)
@@ -93,7 +93,7 @@ SET LOCAL app.is_super_admin = 'true';  -- only if role = super_admin
 ```
 
 ...on that request's DB connection/transaction before running any queries. That's what
-makes the RLS policies actually filter â€” without setting those session variables,
+makes the RLS policies actually filter — without setting those session variables,
 `current_company_id()` returns NULL and everything except super-admin-visible rows
 disappears (fails closed, which is the safe direction).
 
@@ -103,7 +103,7 @@ disappears (fails closed, which is the safe direction).
   `company_id IS NULL` requires `app.is_super_admin = 'true'` to be set for that
   transaction (see the `WITH CHECK` on the `users` policy). Your signup/provisioning
   flow needs to explicitly set that flag when creating those two role types.
-- **Company self-serve signup** (PRD 5.8) needs the same treatment â€” the row being
+- **Company self-serve signup** (PRD 5.8) needs the same treatment — the row being
   created doesn't have a `current_company_id` yet, so the insert path needs a
   privileged connection or a `SECURITY DEFINER` function. Worth designing deliberately
   rather than bolting on later.
