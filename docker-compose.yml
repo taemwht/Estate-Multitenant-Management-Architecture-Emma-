@@ -1,9 +1,31 @@
 services:
+  # The real property-platform API (api/), against the real property_platform
+  # database on this PC. Emma calls it at http://api:8000; you can open
+  # http://localhost:8000/docs from this PC. Secrets come from .env.
+  api:
+    container_name: emma-api
+    build: ./api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${API_DOCKER_DATABASE_URL}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS}
+    ports:
+      - "127.0.0.1:8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - hermes_net
+
   emma:
     container_name: Emma
     build: .
     restart: unless-stopped
     command: gateway run
+    depends_on:
+      - api
     volumes:
       - ./data:/opt/data
       - ./data/finished-skills:/opt/finished-skills:ro
@@ -13,7 +35,7 @@ services:
     stdin_open: true
     tty: true
     environment:
-      API_BASE_URL: http://host.docker.internal:8000
+      API_BASE_URL: http://api:8000
       API_EMAIL: ${EMMA_API_EMAIL}
       API_PASSWORD: ${EMMA_API_PASSWORD}
     deploy:

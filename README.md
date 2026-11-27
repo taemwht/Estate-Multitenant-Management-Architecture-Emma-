@@ -49,7 +49,7 @@ Skills are mounted read-only into the EMMA container (`data/finished-skills/`) t
 
 Every password lives in **one** git-ignored file: `.env` at the repo root. Copy `.env.example` to `.env` and fill it in. Never commit `.env`.
 
-- EMMA: `docker compose up -d` from the repo root (reads `.env`)
+- EMMA + the real API: `docker compose up -d` from the repo root (reads `.env`; API docs at http://localhost:8000/docs)
 - API: run `uvicorn` from `api/` (reads `../.env`); see `api/README.md`
 - Database setup and migrations: see `db/README.md`
 - Demo: `cd demo; docker compose --env-file ../.env up -d`
