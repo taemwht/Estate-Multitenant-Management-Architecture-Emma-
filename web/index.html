@@ -510,6 +510,12 @@ const VIEWS = {
 
   async dash(v){
     const {s, overdue} = await getMany({s:"/dashboard/summary", overdue:"/dashboard/overdue-rent"});
+    // total balance per lease (can be more than one month), and this month's due date
+    const owed = Object.fromEntries(await Promise.all(overdue.map(async o => [o.lease_id, await get(`/leases/${o.lease_id}/arrears`).then(a => a.total_owed).catch(() => null)])));
+    const now = new Date(), lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const dueOf = o => new Date(now.getFullYear(), now.getMonth(), Math.min(o.due_day_of_month, lastDay));
+    const late = o => Math.max(0, Math.floor((new Date(now.getFullYear(), now.getMonth(), now.getDate()) - dueOf(o)) / 86400000));
+    overdue.sort((a, b) => (owed[b.lease_id] ?? 0) - (owed[a.lease_id] ?? 0));
     v.innerHTML = `<h1>${esc(company ? company.name : "Dashboard")}</h1><p class="sub">This month at a glance.</p>
     <div class="stats">
       <div class="stat"><b>${s.total_units}</b><span>Units (${s.occupied_units} occupied)</span></div>
@@ -519,11 +525,13 @@ const VIEWS = {
       <div class="stat"><b>${money(s.security_deposits_held)}</b><span>Deposits held</span></div>
       <div class="stat"><b>${s.annual_checkins_acknowledged}/${s.annual_checkins_total}</b><span>Check-ins acknowledged</span></div>
     </div>
-    <div class="grid">
-      <div class="card"><h2>Overdue this month</h2>${table([
-        {h:"Unit", f:r => esc(r.unit_reference)}, {h:"Tenants", f:r => esc(r.tenant_names.join(", "))},
-        {h:"Rent", num:1, f:r => money(r.monthly_rent)}, {h:"Paid", num:1, f:r => money(r.amount_paid_this_month)},
+    <div class="card"><h2>Overdue this month</h2>${table([
+        {h:"Due", f:r => `${dueOf(r).toLocaleDateString(undefined, {month:"short", day:"numeric", year:"numeric"})}<div class="muted" style="font-size:12px">${late(r)} day${late(r) === 1 ? "" : "s"} late</div>`},
+        {h:"Unit", f:r => `<b>${esc(r.unit_reference)}</b>`}, {h:"Tenants", f:r => esc(r.tenant_names.join(", "))},
+        {h:"Amount owed", num:1, f:r => owed[r.lease_id] == null ? "—" : `<b style="color:var(--bad)">${money(owed[r.lease_id])}</b>`},
+        {h:"Rent", num:1, f:r => money(r.monthly_rent)}, {h:"Paid this month", num:1, f:r => money(r.amount_paid_this_month)},
       ], overdue, "Everyone is paid up.")}</div>
+    <div class="grid">
       <div class="card"><h2>Maintenance by status</h2>${table([
         {h:"Status", f:r => statusBadge(r[0])}, {h:"Requests", num:1, f:r => r[1]},
       ], Object.entries(s.maintenance_by_status), "No requests.")}</div>
