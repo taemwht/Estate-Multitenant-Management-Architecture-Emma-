@@ -121,7 +121,6 @@ select[multiple]{min-height:84px}
 .msg.err{background:var(--bad-soft);color:var(--bad);border-color:color-mix(in srgb,var(--bad) 25%,transparent)} .msg.good{background:var(--ok-soft);color:var(--ok);border-color:color-mix(in srgb,var(--ok) 25%,transparent)}
 .empty{color:var(--muted);padding:6px 0}
 .muted{color:var(--muted)}
-.access td:first-child{font-family:var(--mono);font-size:12.5px}
 .seg{display:flex;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:3px;margin-bottom:16px}
 .seg button{flex:1;border:0;background:none;padding:8px;border-radius:7px;cursor:pointer;color:var(--muted);font-weight:500}
 .seg button.on{background:var(--panel-hi);color:var(--ink)}
@@ -412,9 +411,9 @@ function renderAuth(mode = "in"){
 /* ---------------- tabs per role ---------------- */
 const TABS = {
   tenant: [["home","My home"],["payments","Payments"],["maint","Maintenance"],["checkins","Safety check-ins"]],
-  company_admin: [["dash","Dashboard"],["units","Units"],["tenants","Tenants"],["leases","Leases"],["payments","Payments"],["maint","Maintenance"],["contractors","Contractors"],["checkins","Check-ins"],["accounts","Accounts"],["access","What I can see"]],
-  super_admin: [["companies","Companies"],["accounts","All accounts"],["units","All units"],["leases","All leases"],["maint","All maintenance"],["access","What I can see"]],
-  contractor: [["jobs","My jobs"],["access","What I can see"]],
+  company_admin: [["dash","Dashboard"],["units","Units"],["tenants","Tenants"],["leases","Leases"],["payments","Payments"],["maint","Maintenance"],["contractors","Contractors"],["checkins","Check-ins"],["accounts","Accounts"]],
+  super_admin: [["companies","Companies"],["accounts","All accounts"],["units","All units"],["leases","All leases"],["maint","All maintenance"]],
+  contractor: [["jobs","My jobs"]],
 };
 TABS.staff = TABS.company_admin.filter(([k]) => k !== "accounts");
 
@@ -717,25 +716,6 @@ const VIEWS = {
       {h:"Company", f:r => `<b>${esc(r.name)}</b>`}, {h:"Status", f:r => statusBadge(r.status)}, {h:"Contact", f:r => esc(r.contact_email || "—")},
     ], cos)}</div>`;
     bindForm("fco", b => api("POST","/companies", Object.fromEntries(Object.entries(b).filter(([,x]) => x))));
-  },
-
-  async access(v){
-    const checks = [
-      ["/users","User accounts"], ["/companies","All companies"], ["/tenants","Tenant records"], ["/rental-units","Units"],
-      ["/leases","Leases"], ["/rent-receipts","Payments"], ["/maintenance-requests","Maintenance requests"],
-      ["/annual-checkins","Safety check-ins"], ["/contractors","Contractors"], ["/contractor-payments","Contractor payments"],
-      ["/dashboard/summary","Company dashboard"], ["/my-jobs","Jobs assigned to me"],
-    ];
-    const rows = await Promise.all(checks.map(async ([p, label]) => {
-      try { const d = await get(p); return {p, label, ok:true, n: Array.isArray(d) ? d.length : null}; }
-      catch (e) { return {p, label, ok:false, code:e.status}; }
-    }));
-    v.innerHTML = `<h1>What can a ${esc(ROLE_LABEL[me.role] || me.role)} see?</h1><p class="sub">Live calls to every list endpoint with your login. Counts are what the API returned to you.</p>
-    <div class="card access">${table([
-      {h:"Endpoint", f:r => esc(r.p)}, {h:"Data", f:r => esc(r.label)},
-      {h:"Result", f:r => r.ok ? `<span class="badge ok">Allowed</span>` : `<span class="badge bad">Denied (${r.code})</span>`},
-      {h:"Rows visible", num:1, f:r => r.ok ? (r.n ?? "summary") : "—"},
-    ], rows)}</div>`;
   },
 };
 
