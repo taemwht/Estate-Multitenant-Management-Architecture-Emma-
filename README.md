@@ -59,7 +59,7 @@ Settings in `.env` (change any time, then `docker compose up -d`):
 OPENAI_API_KEY=...
 CHAT_PROVIDER=openai
 CHAT_MODEL=gpt-6-luna
-CHAT_TIMEZONE=America/Los_Angeles
+TIMEZONE=America/Los_Angeles
 ```
 
 Adding another AI provider means one more function in `api/app/chat/provider.py`.

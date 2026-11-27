@@ -30,7 +30,8 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       CHAT_PROVIDER: ${CHAT_PROVIDER:-openai}
       CHAT_MODEL: ${CHAT_MODEL:-gpt-6-luna}
-      CHAT_TIMEZONE: ${CHAT_TIMEZONE:-America/Los_Angeles}
+      TZ: ${TIMEZONE:-America/Los_Angeles}
+      CHAT_TIMEZONE: ${TIMEZONE:-America/Los_Angeles}
       APP_INSTANCE: demo
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_FOR: ${TELEGRAM_BOT_FOR:-demo}
